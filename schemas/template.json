@@ -1,0 +1,525 @@
+{
+ "forecaster": {
+  "model": null,
+  "prior_context": null,
+  "notes": null
+ },
+ "research_summary": null,
+ "nodes": {
+  "dem_share": {
+   "forecasts": {
+    "all": {
+     "le_48.5": null,
+     "le_49": null,
+     "le_49.5": null,
+     "le_50": null,
+     "le_50.5": null,
+     "le_51": null,
+     "le_51.5": null
+    }
+   },
+   "reasoning": null,
+   "sources": []
+  },
+  "bm2_yes_share": {
+   "forecasts": {
+    "dem_to_48.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_48.5_49.0": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_49.0_49.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_49.5_50.0": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_50.0_50.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_50.5_51.0": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_51.0_51.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_over_51.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    }
+   },
+   "reasoning": null,
+   "sources": []
+  },
+  "gov_dem_share": {
+   "forecasts": {
+    "dem_to_48.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_48.5_49.0": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_49.0_49.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_49.5_50.0": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_50.0_50.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_50.5_51.0": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_51.0_51.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_over_51.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    }
+   },
+   "reasoning": null,
+   "sources": []
+  },
+  "recount": {
+   "forecasts": {
+    "dem_to_48.5": {
+     "p": null
+    },
+    "dem_48.5_49.0": {
+     "p": null
+    },
+    "dem_49.0_49.5": {
+     "p": null
+    },
+    "dem_49.5_50.0": {
+     "p": null
+    },
+    "dem_50.0_50.5": {
+     "p": null
+    },
+    "dem_50.5_51.0": {
+     "p": null
+    },
+    "dem_51.0_51.5": {
+     "p": null
+    },
+    "dem_over_51.5": {
+     "p": null
+    }
+   },
+   "reasoning": null,
+   "sources": []
+  },
+  "contest": {
+   "forecasts": {
+    "dem_to_48.5": {
+     "p": null
+    },
+    "dem_48.5_49.0": {
+     "p": null
+    },
+    "dem_49.0_49.5": {
+     "p": null
+    },
+    "dem_49.5_50.0": {
+     "p": null
+    },
+    "dem_50.0_50.5": {
+     "p": null
+    },
+    "dem_50.5_51.0": {
+     "p": null
+    },
+    "dem_51.0_51.5": {
+     "p": null
+    },
+    "dem_over_51.5": {
+     "p": null
+    }
+   },
+   "reasoning": null,
+   "sources": []
+  },
+  "court_order": {
+   "forecasts": {
+    "dem_to_48.5": {
+     "p": null
+    },
+    "dem_48.5_49.0": {
+     "p": null
+    },
+    "dem_49.0_49.5": {
+     "p": null
+    },
+    "dem_49.5_50.0": {
+     "p": null
+    },
+    "dem_50.0_50.5": {
+     "p": null
+    },
+    "dem_50.5_51.0": {
+     "p": null
+    },
+    "dem_51.0_51.5": {
+     "p": null
+    },
+    "dem_over_51.5": {
+     "p": null
+    }
+   },
+   "reasoning": null,
+   "sources": []
+  },
+  "winner_sworn": {
+   "forecasts": {
+    "dem_to_48.5": {
+     "p": null
+    },
+    "dem_48.5_49.0": {
+     "p": null
+    },
+    "dem_49.0_49.5": {
+     "p": null
+    },
+    "dem_49.5_50.0": {
+     "p": null
+    },
+    "dem_50.0_50.5": {
+     "p": null
+    },
+    "dem_50.5_51.0": {
+     "p": null
+    },
+    "dem_51.0_51.5": {
+     "p": null
+    },
+    "dem_over_51.5": {
+     "p": null
+    }
+   },
+   "reasoning": null,
+   "sources": []
+  },
+  "peltola_senator": {
+   "forecasts": {
+    "dem_to_48.5": {
+     "p": null
+    },
+    "dem_48.5_49.0": {
+     "p": null
+    },
+    "dem_49.0_49.5": {
+     "p": null
+    },
+    "dem_49.5_50.0": {
+     "p": null
+    },
+    "dem_50.0_50.5": {
+     "p": null
+    },
+    "dem_50.5_51.0": {
+     "p": null
+    },
+    "dem_51.0_51.5": {
+     "p": null
+    },
+    "dem_over_51.5": {
+     "p": null
+    }
+   },
+   "reasoning": null,
+   "sources": []
+  },
+  "dem_caucus": {
+   "forecasts": {
+    "dem_to_48.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_48.5_49.0": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_49.0_49.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_49.5_50.0": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_50.0_50.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_50.5_51.0": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_51.0_51.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_over_51.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    }
+   },
+   "reasoning": null,
+   "sources": []
+  },
+  "sullivan_post": {
+   "forecasts": {
+    "dem_to_48.5": {
+     "p": null
+    },
+    "dem_48.5_49.0": {
+     "p": null
+    },
+    "dem_49.0_49.5": {
+     "p": null
+    },
+    "dem_49.5_50.0": {
+     "p": null
+    },
+    "dem_50.0_50.5": {
+     "p": null
+    },
+    "dem_50.5_51.0": {
+     "p": null
+    },
+    "dem_51.0_51.5": {
+     "p": null
+    },
+    "dem_over_51.5": {
+     "p": null
+    }
+   },
+   "reasoning": null,
+   "sources": []
+  },
+  "ak_unemployment": {
+   "baseline": {
+    "value": null,
+    "as_of": null,
+    "source": null
+   },
+   "forecasts": {
+    "dem_to_48.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_48.5_49.0": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_49.0_49.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_49.5_50.0": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_50.0_50.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_50.5_51.0": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_51.0_51.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_over_51.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    }
+   },
+   "reasoning": null,
+   "sources": []
+  },
+  "ak_oil": {
+   "baseline": {
+    "value": null,
+    "as_of": null,
+    "source": null
+   },
+   "forecasts": {
+    "dem_to_48.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_48.5_49.0": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_49.0_49.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_49.5_50.0": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_50.0_50.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_50.5_51.0": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_51.0_51.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    },
+    "dem_over_51.5": {
+     "p05": null,
+     "p25": null,
+     "p50": null,
+     "p75": null,
+     "p95": null
+    }
+   },
+   "reasoning": null,
+   "sources": []
+  }
+ }
+}

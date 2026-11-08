@@ -1,0 +1,213 @@
+# The questions the forecasters answer, by range of the Senate result.
+#
+# Each node is one forecast question with an absolute unit. `given: {cells: all}` means a node is
+# forecast at every range of Mary Peltola's final-round share in Alaska's 2026 US Senate race: her votes
+# divided by hers plus Dan S. Sullivan's in the last round of the certified ranked-choice tabulation.
+# Three closed half-point ranges lie on each side of 50%, so a line fits each side through their
+# midpoints, and the two ranges next to 50% give the contrast at the cutoff: a bare Sullivan win
+# against a bare Peltola win. An open tail on each side takes the rest, so whatever the result, it
+# falls in exactly one range, and each run's forecasts for that range can be scored.
+#
+# The machinery keeps the names of the ballot-measure map it was built on: the `fail` cells are
+# Sullivan wins, the `pass` cells Peltola wins, and `passes` in a condition means Peltola wins. This
+# map uses no conditions, states or derived nodes.
+
+measure: "Alaska's 2026 US Senate race: Mary Peltola (Democrat) against Dan S. Sullivan (Republican)"
+election_date: "2026-11-03"
+as_of: "2026-11-08"
+generated_for: "registration before the Alaska Division of Elections' count of 2026-11-10"
+
+# A range holds the shares above `lo` and at or below `hi`, except that dem_49.5_50.0 stops below
+# 50%: a tie voids every forecast. The open tails' `at` only orders them; no fit uses it.
+cells:
+  fail:
+    - {label: dem_to_48.5, hi: 0.485, at: 0.4825}
+    - {label: dem_48.5_49.0, lo: 0.485, hi: 0.490}
+    - {label: dem_49.0_49.5, lo: 0.490, hi: 0.495}
+    - {label: dem_49.5_50.0, lo: 0.495, hi: 0.500}
+  pass:
+    - {label: dem_50.0_50.5, lo: 0.500, hi: 0.505}
+    - {label: dem_50.5_51.0, lo: 0.505, hi: 0.510}
+    - {label: dem_51.0_51.5, lo: 0.510, hi: 0.515}
+    - {label: dem_over_51.5, lo: 0.515, at: 0.5175}
+
+# Close bands, kept for the loader; this study's analysis (scripts/arms.py) does not use them.
+bands:
+  Yc: [0.50, 0.515]   # 0.50 < share <= 0.515
+  Nc: [0.485, 0.50]   # 0.485 <= share <= 0.50
+
+quantiles: [0.05, 0.25, 0.50, 0.75, 0.95]
+
+# Section titles, in the order the prompt shows them.
+modules:
+  vote: "The vote"
+  count: "The count and the courts"
+  senate: "The Senate seat"
+  economy: "Alaska's economy"
+
+# Peltola final-round shares at which forecasters give the cumulative probability for `dem_share`:
+# the edges of the ranges, so each range's probability follows.
+share_grid: [0.485, 0.490, 0.495, 0.500, 0.505, 0.510, 0.515]
+share_floor: 0.40
+share_ceiling: 0.60
+
+nodes:
+
+  # The vote
+
+  - id: dem_share
+    kind: share_cdf
+    module: vote
+    question: "Mary Peltola's share of the final-round votes for Peltola and Dan S. Sullivan."
+    resolution: >-
+      The last round of the ranked-choice tabulation for US Senator in the certified results of the
+      2026-11-03 general election, after any recount, as the Alaska Division of Elections publishes
+      them: Peltola's votes divided by Peltola's plus Dan S. Sullivan's. If a candidate wins a majority
+      of first-choice votes, so that no tabulation runs, the first round counts as the last. Every
+      forecast in this brief is void if Peltola and Dan S. Sullivan are not the last two candidates, or
+      if they tie.
+    scored: true
+
+  - id: bm2_yes_share
+    kind: quantity
+    module: vote
+    unit: "percent of Yes plus No votes"
+    bounds: [30, 70]
+    given: {cells: all}
+    question: "Ballot Measure 2's certified Yes share."
+    resolution: >-
+      The certified results of the 2026-11-03 general election for Ballot Measure 2 (petition 24ESEG,
+      which would repeal the open primary and ranked-choice general elections), after any recount: Yes
+      votes divided by Yes plus No votes, as a percent. Source: the Alaska Division of Elections
+      (elections.alaska.gov).
+    scored: true
+
+  - id: gov_dem_share
+    kind: quantity
+    module: vote
+    unit: "percent of the final-round votes for the top two tickets"
+    bounds: [30, 70]
+    given: {cells: all}
+    question: "The Kreiss-Tomkins/Johnson ticket's share of the final-round votes for governor."
+    resolution: >-
+      The last round of the ranked-choice tabulation for governor and lieutenant governor in the
+      certified results, after any recount: votes for Jonathan Kreiss-Tomkins and Zac Johnson divided by
+      the votes for the two tickets with the most votes in that round, as a percent. If a ticket wins a
+      majority of first-choice votes, the first round counts as the last. Void if Kreiss-Tomkins and
+      Johnson are not one of those two tickets.
+    scored: true
+
+  # The count and the courts
+
+  - id: recount
+    kind: binary
+    module: count
+    given: {cells: all}
+    question: "By 2026-12-31, a recount of the US Senate race is requested or ordered."
+    resolution: >-
+      Between 2026-11-08 and 2026-12-31, a candidate or qualified voters apply for a recount of the 2026
+      US Senate race under AS 15.20.430, or the Division of Elections or a court orders one, as the
+      Division's notices, court records or news show.
+    scored: true
+
+  - id: contest
+    kind: binary
+    module: count
+    given: {cells: all}
+    question: "By 2026-12-31, an election contest over the US Senate race is filed in Alaska superior court."
+    resolution: >-
+      Between 2026-11-08 and 2026-12-31, someone files an election contest of the 2026 US Senate race in
+      Alaska superior court under AS 15.20.540, as court records or news show. Suits over access to
+      ballot records, and filings in federal cases, do not count.
+    scored: true
+
+  - id: court_order
+    kind: binary
+    module: count
+    given: {cells: all}
+    question: "By 2026-12-31, a court orders Alaska to stop, delay or undo certifying its US Senate result."
+    resolution: >-
+      Between 2026-11-08 and 2026-12-31, a state or federal court, at any level, issues an order,
+      injunction or stay that bars or delays the certification of Alaska's 2026 US Senate result, or
+      vacates that certification, even if the order is later lifted. Orders about access to ballot
+      records, or about how particular ballots are counted, count only if they also bar or delay
+      certification. Sources: court records (including the appeal in United States v. State of Alaska,
+      3:26-cv-00376-SLG, D. Alaska); news.
+    scored: true
+
+  - id: winner_sworn
+    kind: binary
+    module: count
+    given: {cells: all}
+    question: "The certified winner takes the Senate seat by 2027-01-31."
+    resolution: >-
+      By 2027-01-31, the candidate whom Alaska's final certification of the 2026 US Senate race names as
+      the winner, after any recount or contest, takes the oath of office as a US Senator for the term
+      that begins on 2027-01-03, as senate.gov or the Congressional Record shows.
+    scored: true
+
+  # The Senate seat
+
+  - id: peltola_senator
+    kind: binary
+    module: senate
+    given: {cells: all}
+    question: "Mary Peltola is a US Senator on 2027-02-01."
+    resolution: "On 2027-02-01, Mary Peltola holds office as a US Senator from Alaska, as senate.gov shows."
+    scored: true
+
+  - id: dem_caucus
+    kind: quantity
+    module: senate
+    unit: "senators"
+    integer: true
+    bounds: [35, 65]
+    given: {cells: all}
+    question: "Senators in the Democratic caucus on 2027-02-01."
+    resolution: >-
+      On 2027-02-01, the number of US Senators who are Democrats or who caucus with them, independents
+      counted with the party they caucus with, as senate.gov's party division page shows. Vacant seats
+      count for neither party.
+    scored: true
+
+  - id: sullivan_post
+    kind: binary
+    module: senate
+    given: {cells: all}
+    question: "By 2027-06-30, the President names Dan S. Sullivan to a federal executive or judicial post."
+    resolution: >-
+      Between 2026-11-08 and 2027-06-30, the President announces Dan S. Sullivan as his choice for, or
+      nominates him to, a federal executive post (a Cabinet or sub-Cabinet office, an ambassadorship or
+      a White House position) or a federal judgeship, as a White House announcement, a nomination sent
+      to the Senate (congress.gov) or news shows.
+    scored: true
+
+  # Alaska's economy
+
+  - id: ak_unemployment
+    kind: quantity
+    module: economy
+    unit: "percent"
+    bounds: [1, 15]
+    baseline: true
+    given: {cells: all}
+    question: "Alaska's seasonally adjusted unemployment rate for December 2026."
+    resolution: >-
+      The seasonally adjusted unemployment rate for Alaska for December 2026, as the Bureau of Labor
+      Statistics first publishes it in Local Area Unemployment Statistics (series
+      LASST020000000000003). Baseline: the latest month published.
+    scored: true
+
+  - id: ak_oil
+    kind: quantity
+    module: economy
+    unit: "thousand barrels per day"
+    bounds: [200, 700]
+    baseline: true
+    given: {cells: all}
+    question: "Alaska's field production of crude oil in January 2027."
+    resolution: >-
+      Alaska field production of crude oil for January 2027, in thousand barrels per day, as the US
+      Energy Information Administration first publishes it (series MCRFPAK2, Petroleum Supply
+      Monthly). Baseline: the latest month published.
+    scored: true

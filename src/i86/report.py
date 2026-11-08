@@ -1,0 +1,192 @@
+"""Write the pooled results: outputs/summary.json, summary.md, nodes.csv and runs.csv."""
+
+from __future__ import annotations
+
+import csv
+import json
+from pathlib import Path
+
+from .graph import Graph
+from .summarize import CONDITIONS, headline, summary_keys
+
+COLUMNS = [
+    ("N", "Abbott wins"),
+    ("Y", "Hinojosa wins"),
+    ("Nc", "Abbott narrowly (Hinojosa 47–50%)"),
+    ("Yc", "Hinojosa narrowly (50–53%)"),
+    ("cutoff_fail", "At 49.5%"),
+    ("cutoff_pass", "At 50.5%"),
+]
+FAIL_CONDITIONS = {"N", "Nc", "cutoff_fail"}
+
+
+def _num(x: float, integer: bool = False) -> str:
+    if x is None:
+        return "–"
+    a = abs(x)
+    if a >= 100 or (integer and a >= 10):
+        return f"{x:,.0f}"
+    if a >= 10:
+        return f"{x:.1f}"
+    return f"{x:.2f}"
+
+
+def label(graph: Graph, key: str) -> str:
+    node = graph.owner(key)
+    mark = " †" if node.cells_mode == "near" else ""
+    if "." in key:
+        option = key.split(".", 1)[1]
+        stem = node.question.split(":", 1)[0].rstrip(".")
+        return f"`{key}` {stem}: {option}{mark}"
+    return f"`{key}` {node.question}{mark}"
+
+
+def _p(desc: dict) -> str:
+    return f"{desc['p'] * 100:.0f}%"
+
+
+def cell(graph: Graph, key: str, entry: dict, condition: str, total_runs: int) -> str:
+    node = graph.owner(key)
+    desc = entry.get(condition)
+    given = entry.get(f"{condition}|given") if node is not None and node.exists_if is not None else None
+    if node is not None and node.exists_if is not None and given is None:
+        return "n/a"
+    if desc is None:
+        return "–"
+    shown = given if given is not None else desc
+    note = f" ({shown['runs']} of {total_runs} runs)" if shown.get("runs", total_runs) < total_runs else ""
+    if "p" in desc:
+        if given is not None and abs(given["p"] - desc["p"]) > 0.005:
+            return f"{_p(given)} (joint {_p(desc)}){note}"
+        return f"{_p(desc)}{note}"
+    if key == "dem_share":
+        return f"{desc['mean'] * 100:.1f}% [{desc['p05'] * 100:.1f}–{desc['p95'] * 100:.1f}]{note}"
+    integer = bool(node and node.integer)
+    return f"{_num(desc['mean'])} [{_num(desc['p05'], integer)}–{_num(desc['p95'], integer)}]{note}"
+
+
+def effect(graph: Graph, key: str, x: float) -> str:
+    node = graph.owner(key)
+    if "." in key or (node is not None and node.kind in {"binary", "derived"}):
+        return f"{x * 100:+.1f} pts"
+    return f"{x:+,.2f}" if abs(x) < 100 else f"{x:+,.0f}"
+
+
+def markdown(graph: Graph, result: dict, meta: dict) -> str:
+    vote = result["vote"]
+    total = len(result["runs"])
+    lines = [
+        "# Pooled forecasts",
+        "",
+        f"{total} independent forecaster runs, {result['n_per_run']:,} Monte Carlo draws each (seed "
+        f"{result['seed']}). Each column weights every forecaster's own conditional forecast equally, "
+        "whatever that forecaster thinks Hinojosa's chance of winning is. Quantities show the mean and "
+        "the 5th–95th percentile range; yes/no questions show a probability.",
+        "",
+        "'Abbott wins' and 'Hinojosa wins' differ for two reasons: what a Hinojosa governorship does, "
+        "and what the result says about Texas voters. Their gap is not an effect. 'At 49.5%' and 'At "
+        "50.5%' fix Hinojosa's certified two-party share, with shared random numbers. Their difference, "
+        "the cutoff effect, is the forecasters' estimate of what a bare Hinojosa win changes; it does "
+        "not show what a Hinojosa governorship does in a typical world where she wins. 'Per Hinojosa "
+        "ballot' averages, over forecasters, each one's cutoff effect times its chance that one ballot "
+        "decides the race, in the question's unit (a probability for yes/no questions). Forecasters who "
+        "expect a close race weigh more in it, so its sign can differ from the pooled cutoff effect. All "
+        "are model forecasts under stated scenarios, not observations.",
+        "",
+        "## Who wins",
+        "",
+        f"- P(Hinojosa wins): {vote['p_pass'] * 100:.1f}%",
+        f"- P(Hinojosa wins with 50–53%): {vote['p_close_pass'] * 100:.1f}%; P(Abbott wins with Hinojosa at 47–50%): {vote['p_close_fail'] * 100:.1f}%",
+        f"- Density of Hinojosa's two-party share at 50%: {vote['density_at_half']:.2f} per unit share",
+        f"- Chance one ballot decides it: 1 in {vote['one_in']:,.0f}" if vote["one_in"] else "- Chance one ballot decides it: 0",
+        "",
+        "| Run | Model | P(Hinojosa wins) | Mean Hinojosa share | 1 ballot decides | Same at every cell | Same at 49.5% and 50.5% "
+        "| Suspect calls | Prior context | Flags |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---|---|",
+    ]
+    for rid in result["runs"]:
+        v = vote["by_run"][rid]
+        m = meta.get(rid) or {}
+        mean = result["per_run"][rid]["nodes"]["dem_share"]["all"]["mean"]
+        one_in = f"1 in {v['one_in']:,.0f}" if v["one_in"] else "0"
+        d = result["per_run"][rid].get("diagnostics") or {}
+        flat = f"{d['flat_share'] * 100:.0f}%" if d.get("flat_share") is not None else "–"
+        zero = f"{d['zero_jump_share'] * 100:.0f}%" if d.get("zero_jump_share") is not None else "–"
+        prior = " ".join(str(m.get("prior_context") or "–").split())[:80].replace("|", "/")
+        lines.append(
+            f"| {rid} | {m.get('model_served') or '?'} | {v['p_pass'] * 100:.0f}% | {mean * 100:.1f}% | {one_in} "
+            f"| {flat} | {zero} | {m.get('suspect_calls', '–')} | {prior} | {', '.join(f for f in ('late', 'recovered') if m.get(f))} |")
+    lines += [
+        "",
+        "'Same at every cell' and 'Same at 49.5% and 50.5%' are the shares of a run's question-and-state "
+        "groups whose answers are identical across cells; high values can mean copied answers. 'Suspect "
+        "calls' counts tool calls the audit flagged for reading without excluding the run. 'Prior context' "
+        "is what the forecaster reported seeing, before research, beyond the brief. 'late' runs were "
+        "dispatched after other answers were in the repository; 'recovered' runs were reported lost by "
+        "their supervisor, and their answer is the final message in the run's own transcript.",
+        "",
+    ]
+    keys = summary_keys(graph)
+    for module, title in graph.modules.items():
+        lines += [f"## {title}", ""]
+        header = "| Question | Unit | " + " | ".join(t for _, t in COLUMNS) + " | Cutoff effect | Per Hinojosa ballot | Effect by run |"
+        lines += [header, "|" + "---|" * (len(COLUMNS) + 5)]
+        for key in keys:
+            node = graph.owner(key)
+            if node.module != module or key == "dem_share":
+                continue
+            entry = result["nodes"][key]
+            unit = node.unit or ("probability" if node.kind in {"binary", "derived", "categorical"} else "")
+            cells = " | ".join(cell(graph, key, entry, c, total) for c, _ in COLUMNS)
+            runs = ", ".join(f"{rid} {effect(graph, key, x)}" for rid, x in entry["cutoff_effect_by_run"].items())
+            per = "–" if entry["per_dem_ballot"] is None else f"{entry['per_dem_ballot']:+.2g}"
+            lines.append(f"| {label(graph, key)} | {unit} | {cells} | {effect(graph, key, entry['cutoff_effect'])} "
+                         f"| {per} | {runs} |")
+        lines.append("")
+    lines += [
+        "For a question defined only under a condition (none in this map), a "
+        "cell shows the probability given that condition, and the joint probability P(condition and event) "
+        "in parentheses where the two differ. The conditional is each forecaster's own, from draws "
+        "restricted to worlds where the condition holds and weighted by that forecaster's probability of "
+        "it, so every forecaster that gives the condition any probability counts equally. The cutoff "
+        "effect and the per-ballot figure use the joint. 'n/a' marks conditions where the question is "
+        "undefined; '(k of n runs)' marks a cell to which only k forecasters contribute.",
+        "",
+        "† Asked only at a bare loss and a bare win (49.5% and 50.5%; none in this map). The Abbott wins "
+        "and Hinojosa wins columns apply those answers at every margin on their side. They still vary with "
+        "the margin through upstream questions answered at every cell, but not through the question's own "
+        "answers.",
+        "",
+        *(["In count distributions the top label ('5+') counts as 5 in means."]
+          if any(n.kind == "pmf" for n in graph.nodes.values()) else []),
+        "Quantity tails beyond the 5th and 95th percentiles continue the neighbouring segment's slope, so "
+        "means of heavy right tails are understated.",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def write(graph: Graph, result: dict, meta: dict, outdir: Path) -> None:
+    from . import plots
+
+    outdir.mkdir(parents=True, exist_ok=True)
+    plots.write(graph, result, outdir)
+    (outdir / "summary.json").write_text(json.dumps(result, indent=1, sort_keys=True) + "\n")
+    (outdir / "summary.md").write_text(markdown(graph, result, meta))
+    with open(outdir / "nodes.csv", "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["node", "condition", "runs", "mean_or_p", "p05", "p25", "p50", "p75", "p95"])
+        for key, entry in result["nodes"].items():
+            for cond in [c for c in entry if c in CONDITIONS or c.endswith("|given")]:
+                d = entry.get(cond)
+                if d is None:
+                    continue
+                w.writerow([key, cond, d.get("runs"), headline(d), *(d.get(k) for k in ("p05", "p25", "p50", "p75", "p95"))])
+    with open(outdir / "runs.csv", "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["run", "model", "node", "mean_or_p_all", "mean_or_p_N", "mean_or_p_Y", "cutoff_effect"])
+        for rid, r in result["per_run"].items():
+            model = (meta.get(rid) or {}).get("model_served")
+            for key, entry in r["nodes"].items():
+                w.writerow([rid, model, key, headline(entry["all"]), headline(entry["N"]), headline(entry["Y"]),
+                            entry["cutoff_effect"]])

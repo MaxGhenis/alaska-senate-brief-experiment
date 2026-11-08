@@ -1,0 +1,204 @@
+{
+ "seed": 20261108,
+ "per_arm": 3,
+ "arms": [
+  "00",
+  "01",
+  "10",
+  "11"
+ ],
+ "runs": [
+  {
+   "order": 1,
+   "label": "opus-01",
+   "family": "opus",
+   "arm": "00",
+   "tier": "standard",
+   "model": "opus"
+  },
+  {
+   "order": 2,
+   "label": "sol-01",
+   "family": "sol",
+   "arm": "10",
+   "tier": "hard",
+   "model": null
+  },
+  {
+   "order": 3,
+   "label": "opus-02",
+   "family": "opus",
+   "arm": "00",
+   "tier": "standard",
+   "model": "opus"
+  },
+  {
+   "order": 4,
+   "label": "sol-02",
+   "family": "sol",
+   "arm": "00",
+   "tier": "hard",
+   "model": null
+  },
+  {
+   "order": 5,
+   "label": "opus-03",
+   "family": "opus",
+   "arm": "11",
+   "tier": "standard",
+   "model": "opus"
+  },
+  {
+   "order": 6,
+   "label": "sol-03",
+   "family": "sol",
+   "arm": "11",
+   "tier": "hard",
+   "model": null
+  },
+  {
+   "order": 7,
+   "label": "opus-04",
+   "family": "opus",
+   "arm": "11",
+   "tier": "standard",
+   "model": "opus"
+  },
+  {
+   "order": 8,
+   "label": "sol-04",
+   "family": "sol",
+   "arm": "11",
+   "tier": "hard",
+   "model": null
+  },
+  {
+   "order": 9,
+   "label": "opus-05",
+   "family": "opus",
+   "arm": "11",
+   "tier": "standard",
+   "model": "opus"
+  },
+  {
+   "order": 10,
+   "label": "sol-05",
+   "family": "sol",
+   "arm": "10",
+   "tier": "hard",
+   "model": null
+  },
+  {
+   "order": 11,
+   "label": "opus-06",
+   "family": "opus",
+   "arm": "00",
+   "tier": "standard",
+   "model": "opus"
+  },
+  {
+   "order": 12,
+   "label": "sol-06",
+   "family": "sol",
+   "arm": "01",
+   "tier": "hard",
+   "model": null
+  },
+  {
+   "order": 13,
+   "label": "opus-07",
+   "family": "opus",
+   "arm": "10",
+   "tier": "standard",
+   "model": "opus"
+  },
+  {
+   "order": 14,
+   "label": "sol-07",
+   "family": "sol",
+   "arm": "10",
+   "tier": "hard",
+   "model": null
+  },
+  {
+   "order": 15,
+   "label": "opus-08",
+   "family": "opus",
+   "arm": "10",
+   "tier": "standard",
+   "model": "opus"
+  },
+  {
+   "order": 16,
+   "label": "sol-08",
+   "family": "sol",
+   "arm": "01",
+   "tier": "hard",
+   "model": null
+  },
+  {
+   "order": 17,
+   "label": "opus-09",
+   "family": "opus",
+   "arm": "01",
+   "tier": "standard",
+   "model": "opus"
+  },
+  {
+   "order": 18,
+   "label": "sol-09",
+   "family": "sol",
+   "arm": "01",
+   "tier": "hard",
+   "model": null
+  },
+  {
+   "order": 19,
+   "label": "opus-10",
+   "family": "opus",
+   "arm": "01",
+   "tier": "standard",
+   "model": "opus"
+  },
+  {
+   "order": 20,
+   "label": "sol-10",
+   "family": "sol",
+   "arm": "00",
+   "tier": "hard",
+   "model": null
+  },
+  {
+   "order": 21,
+   "label": "opus-11",
+   "family": "opus",
+   "arm": "10",
+   "tier": "standard",
+   "model": "opus"
+  },
+  {
+   "order": 22,
+   "label": "sol-11",
+   "family": "sol",
+   "arm": "00",
+   "tier": "hard",
+   "model": null
+  },
+  {
+   "order": 23,
+   "label": "opus-12",
+   "family": "opus",
+   "arm": "01",
+   "tier": "standard",
+   "model": "opus"
+  },
+  {
+   "order": 24,
+   "label": "sol-12",
+   "family": "sol",
+   "arm": "11",
+   "tier": "hard",
+   "model": null
+  }
+ ]
+}
