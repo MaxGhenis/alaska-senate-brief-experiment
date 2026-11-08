@@ -107,8 +107,8 @@ directory and a read-only sandbox.
 
 ## Registered analysis
 
-**Measures.** For each run and each question asked at every range, `src/i86/arms.py` reads the run's
-answer at each range, the probability for a yes/no question and the median for a quantity, and
+**Measures.** For each run and each question it answers at every range, `src/i86/arms.py` reads the
+run's answer at each range, the probability for a yes/no question and the median for a quantity, and
 computes:
 
 - `jump`: the gap at 50% between two least-squares lines, Peltola's minus Sullivan's. One line runs
@@ -118,7 +118,7 @@ computes:
 - `contrast`: the answer at `dem_50.0_50.5` minus the answer at `dem_49.5_50.0`.
 - `slope`: the mean of the two lines' slopes, per point of Peltola's share.
 
-**Primary outcomes.** Three, each with a two-sided test:
+**Primary outcomes.** I register three, each with a two-sided test:
 
 1. **P1, the coached placebo**: the placebo block's main effect on the abs_jump of `bm2_yes_share`. I
    expect the block to shrink that jump, since it tells forecasters to make none.
@@ -132,15 +132,21 @@ computes:
    in who won.
 
 **Estimates.** An arm's mean weights the two models equally: the mean of the Opus runs' mean and the
-Sol runs' mean. A main effect subtracts the mean of the two arms without a block from the mean of the
-two arms with it, and the interaction subtracts arms 10 and 01 from arms 11 and 00. Each estimate
-carries a standard error from the eight model-by-arm groups, Welch-Satterthwaite degrees of freedom
-and a 95% t interval. For its p-value, `scripts/arms.py` re-assigns the arms among each model's runs
-100,000 times, keeping each arm's count. The p-value gives the share of those assignments, the
-observed one added, whose effect lies at least as far from zero as the observed effect. That p-value
-stays valid, whatever the answers' distribution, under the sharp null that the blocks change no run's
-answers. Holm's step-down correction adjusts the three primaries' p-values, and I count a primary
-effect as found when its adjusted p-value falls below 0.05.
+Sol runs' mean. A main effect subtracts the mean of the two arms without a block from the mean of
+the two arms with it, and the interaction subtracts arms 10 and 01 from arms 11 and 00. For each
+model, `src/i86/arms.py` pools the variance of its runs about their arms' means, with one degree of
+freedom for each run less one for each arm. Each estimate's standard error combines the two models'
+pooled variances, and its 95% t interval takes Welch-Satterthwaite degrees of freedom. If one model
+has no accepted run in some arm, `scripts/arms.py` leaves that model out of every estimate and uses
+the other model's runs alone. If neither model has an accepted run in every arm, it reports every
+estimate as undefined. For its p-value, `scripts/arms.py` re-assigns the arms among each model's
+runs 100,000 times, keeping each arm's count. The p-value gives the share of those assignments,
+counting the observed one, whose effect lies at least as far from zero as the observed effect. The
+randomization makes that test exact, whatever the answers' distribution, under the sharp null that
+the blocks change neither any run's answers nor whether the run stays in the analysis. Holm's
+step-down correction adjusts the three primaries' p-values, and counts an undefined one among the
+three without adjusting it. I reject a primary effect's null when its adjusted p-value falls below
+0.05.
 
 **Other estimates.** `scripts/arms.py` also reports each primary effect within each model, with its
 own interval. Beyond the primaries, it estimates the effect of each block and of their interaction on
@@ -150,20 +156,30 @@ the `peltola_senator` check among them.
 
 **Exclusions.** A run stays out of every analysis if:
 
-- its answer fails `i86 check`;
-- it ran on a brief other than its arm's current one;
+- its answer fails `i86 check`, after the two repairs below;
+- it ran on a brief other than its arm's current one, or the prompt that Subfleet records sending
+  lacks that brief byte for byte;
 - a model other than its own served it, by Subfleet's record: `claude-opus-5-5` for an Opus run,
   `gpt-6.1-sol` for a Sol run;
 - `i86 audit` fails it, or, for a Sol run, `scripts/audit_codex_sessions.py` fails any thread behind
   it;
-- it fails, runs out of time or never starts. Each label gets one dispatch, and no run replaces
-  another.
+- it fails or never starts, or Subfleet records it finishing after 12:00Z on November 10;
+- I dispatched it with `i86 dispatch --late`, after `i86 collect` had copied answers in.
+
+Each label gets one dispatch, and no run replaces another. Before `i86 check` parses an answer, it
+makes two repairs, the same in every arm, and records each in `runs/<label>/repairs.json`. It drops
+each comma that comes just before a closing brace or bracket, outside strings, when the JSON parses
+only without those commas. It also drops each key the template lacks, among the questions or in a
+question's forecasts, when the key holds null, text, a number, true, false or a list, none of which
+can hold a forecast. Seven Opus answers failed the check in the DC and Texas studies, and these
+repairs would have let six of them pass. Any other fault still fails the run, and `scripts/arms.py
+--strict` reruns the analysis without the runs whose answers `i86 check` repaired.
 
 A run with a suspect tool call, or whose `prior_context` mentions these questions, also stays out
-unless I accept the flag. Before the analysis runs, a separate model reviewer reads each flag with the
-run's label masked and its arm withheld, and I accept the flags it clears. `scripts/arms.py
---accept-all-flags` then reruns the analysis with every flag accepted, as a sensitivity check; a
-failed check or audit, a stale brief or the wrong model still keeps a run out.
+unless I accept the flag. Before the analysis runs, I hide each flag's run label and arm and cut any
+quote of either block from it. A separate model reviewer then reads each flag, and I accept the flags
+it clears. As a sensitivity check, `scripts/arms.py --accept-all-flags` reruns the analysis accepting
+every flag and keeps every other exclusion.
 
 ## Scoring
 
@@ -183,12 +199,16 @@ the one range that happens, so it can neither confirm nor rule out a jump.
 ## Timing
 
 The Division's November 10 count brings its first new results since election week, so every run must
-finish before then. `scripts/deadline_guard.py` cancels any run still waiting for a lane at 09:00Z on
-November 10, kills any still going at 12:00Z (3 a.m. in Juneau), and marks each one abandoned. Voting
-ended on November 3, so, unlike the DC and Texas briefs, this brief lets forecasters use vote counts,
-polls and prediction markets. `scripts/seal.py --now` collects, checks, audits and stamps every answer
-once the last run has finished. A launchd copy of it does the same from 12:00Z on November 8 if no one
-has, and gives up at 16:00Z on November 10, 7 a.m. in Juneau.
+finish before then. `scripts/deadline_guard.py` cancels any run still waiting for a lane at 09:00Z
+on November 10, kills any still going at 12:00Z (3 a.m. in Juneau), and marks each one abandoned.
+Voting ended on November 3, so, unlike the DC and Texas briefs, this brief lets forecasters use vote
+counts, polls and prediction markets. Once the last run has finished, `scripts/seal.py --now` runs
+`i86 recover` on every run that Subfleet reports lost, whatever its arm. Where such a run's agent
+finished cleanly, `i86 recover` takes its answer from the run's own transcript. `scripts/seal.py`
+then collects, checks and audits every answer, audits every thread behind each Sol run, and stamps
+the record. A launchd copy of it does the same from 12:00Z on November 8 if no one has, tries again
+every minute until it has committed and pushed the record, and gives up at 16:00Z on November 10,
+7 a.m. in Juneau.
 
 ## Registration
 
@@ -201,24 +221,26 @@ for every run's answer, audit and transcript, with a stamp from before the Novem
 ## Independence
 
 Each forecaster gets its arm's brief byte for byte: `prompts/SHA256SUMS` lists the four hashes, and
-each run's `meta.json` records its own. Forecasters work in empty directories under
-`~/.cache/aksen-work/`, whose names say nothing about the study, and the brief tells them not to read
-local files. I keep this repository private until the last run finishes, then make it public, and `i86
-collect` copies no answer into it before then. `i86 audit` reads each run's transcript and flags any
-tool call that could read outside the run's work directory. Codex returns only a Sol run's main
-thread, so `scripts/audit_codex_sessions.py` finds every thread behind the run in its lane's session
-logs, sub-agents included, and audits each one the same way. Those logs carry the lanes' account
-details, so they stay out of git, and the stamped manifests keep their hashes.
+each run's `meta.json` records its own. Each run works in an empty directory under
+`~/.cache/aksen-work/` that takes the run's label as its name, which says nothing about the arm, and
+the brief tells forecasters not to read local files. I keep this repository private until the last
+run finishes, then make it public, and `i86 collect` copies no answer into it before then. `i86
+audit` reads each run's transcript and flags any tool call that could read outside the run's work
+directory. Codex returns only a Sol run's main thread, so `scripts/audit_codex_sessions.py` finds
+every thread behind the run, its sub-agents' among them, in its lane's session logs and audits each
+one the same way. Those logs carry the lanes' account details, so they stay out of git, and the
+stamped manifests keep their hashes.
 
 ## Power and limits
 
 Each main effect compares 12 runs with 12. At 5% two-sided, a test this size detects an effect of
-about 1.2 run-level standard deviations 80% of the time, and it can miss smaller ones. Runs of one
-model share its training and often its answers, so the intervals cover further runs of these two
-models, not other forecasters. This study tests the blocks on one race, with its own questions and
-date, and reruns neither the DC study nor the Texas one. Models produced these forecasts under stated
-scenarios: a jump measures what a forecaster expects a bare win to change, and the certified result
-will show only one side of 50%.
+about 1.22 run-level standard deviations 80% of the time. Holm's correction compares the smallest of
+the three primaries' p-values with 5%/3, and at that level the test needs about 1.45 standard
+deviations for the same power. Runs of one model share its training and often its answers, so the
+intervals cover further runs of these two models, not other forecasters. This study tests the blocks
+on one race, with its own questions and date, and reruns neither the DC study nor the Texas one.
+Models produced these forecasts under stated scenarios: a jump measures what a forecaster expects a
+bare win to change, and the certified result will show only one side of 50%.
 
 ## Run it
 
@@ -239,6 +261,7 @@ uv pip install -e ".[dev]"
 .venv/bin/python scripts/audit_codex_sessions.py   # audit every thread behind each Sol run
 .venv/bin/python scripts/arms.py              # the registered analysis, into outputs/arms/
 .venv/bin/python scripts/arms.py --accept-all-flags --out outputs/arms-all-flags
+.venv/bin/python scripts/arms.py --strict --out outputs/arms-strict   # without the repaired answers
 .venv/bin/python scripts/score.py             # scores, into outputs/scores/, as outcomes resolve
 .venv/bin/i86 prereg                          # hash everything into prereg/SHA256SUMS and stamp it
 ```
@@ -253,8 +276,9 @@ macOS with ripgrep and poppler from Homebrew.
 - `prompts/arm-00.md` through `prompts/arm-11.md`: the four briefs, with their hashes in
   `prompts/SHA256SUMS`; `schemas/template.json`: the response template.
 - `design/assignment.json`: each run's model, arm and dispatch order.
-- `runs/<label>/`: each run's brief as sent, metadata, verbatim answer, transcript, parsed answer and
-  audit, and for a Sol run, `codex-sessions/audit.json` with the audit of every thread.
+- `runs/<label>/`: each run's brief, the prompt its lane sent, metadata, verbatim answer, transcript,
+  parsed answer, any repairs `i86 check` made, and audit, and for a Sol run,
+  `codex-sessions/audit.json` with the audit of every thread.
 - `src/i86/`: the map, briefs, answer checks, measures and effects (`arms.py`), scoring (`score.py`),
   runners and audit. The DC study's simulator stays for its tests; `i86 simulate` refuses this map.
 - `scripts/`: `arms.py` and `score.py` write `outputs/arms/` and `outputs/scores/`;

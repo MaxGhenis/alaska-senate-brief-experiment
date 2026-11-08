@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import random
 from pathlib import Path
@@ -52,3 +54,20 @@ def MOCK_response(graph: Graph, seed: int = 0, share_mean: float = 0.62, share_s
                 value = {name: w / total for name, w in zip(names, ws)}
             item["forecasts"][entry.key] = value
     return obj
+
+
+# A MOCK brief for subfleet runs in tests: accepted_runs needs runs/<label>/prompt.md to hash to the
+# run's recorded brief and prompt.sent.md to hold it, and the run to finish before cli.DEADLINE.
+MOCK_BRIEF = "MOCK brief: not one of the study's briefs\n"
+MOCK_SHA = hashlib.sha256(MOCK_BRIEF.encode()).hexdigest()
+
+
+def MOCK_subfleet_meta(run_dir: Path, **meta) -> dict:
+    """Write a MOCK subfleet run's brief files and meta.json, and return the meta: the brief MOCK_BRIEF,
+    sent after a MOCK lane preamble, and a finish on 2026-11-09."""
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "prompt.md").write_text(MOCK_BRIEF)
+    (run_dir / "prompt.sent.md").write_text("MOCK lane preamble\n" + MOCK_BRIEF)
+    meta = {"backend": "subfleet", "prompt_sha256": MOCK_SHA, "finished_at": "2026-11-09T00:00:00Z", **meta}
+    (run_dir / "meta.json").write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n")
+    return meta

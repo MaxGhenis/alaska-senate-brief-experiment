@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 from i86 import cli, runners
-from mock import MOCK_response
+from mock import MOCK_SHA, MOCK_response, MOCK_subfleet_meta
 
 
 @pytest.fixture
@@ -86,10 +86,9 @@ def test_the_work_directory_is_outside_the_repository(area):
     assert work == str(runners.WORK / "claude-1") and not work.startswith(str(runners.RUNS))
 
 
-def _accepted_run(graph, label, prompt_sha="sha", passed=True, prior="none", suspect=()):
+def _accepted_run(graph, label, prompt_sha=MOCK_SHA, passed=True, prior="none", suspect=()):
     run = runners.RUNS / label
-    run.mkdir(parents=True)
-    runners.write_meta(run, {"label": label, "backend": "subfleet", "prompt_sha256": prompt_sha})
+    MOCK_subfleet_meta(run, label=label, prompt_sha256=prompt_sha)
     obj = MOCK_response(graph)
     obj["forecaster"]["prior_context"] = prior
     (run / "response.json").write_text(json.dumps(obj))
@@ -104,10 +103,10 @@ def test_pooling_takes_only_current_prompt_audited_runs_with_no_prior_context(ar
     _accepted_run(graph, "old-prompt", prompt_sha="other")
     _accepted_run(graph, "failed-audit", passed=False)
     _accepted_run(graph, "saw-notes", prior="Memory notes: an earlier I-86 forecast put passage at 60%.")
-    assert set(cli.accepted_runs(graph, "sha")) == {"ok"}
+    assert set(cli.accepted_runs(graph, MOCK_SHA)) == {"ok"}
     err = capsys.readouterr().err
     assert "old-prompt" in err and "failed-audit" in err and "saw-notes" in err
-    assert set(cli.accepted_runs(graph, "sha", accept_prior={"saw-notes"})) == {"ok", "saw-notes"}
+    assert set(cli.accepted_runs(graph, MOCK_SHA, accept_prior={"saw-notes"})) == {"ok", "saw-notes"}
 
 
 def test_a_run_with_suspect_calls_is_pooled_only_once_the_operator_lists_it(area, graph, capsys):
@@ -116,11 +115,11 @@ def test_a_run_with_suspect_calls_is_pooled_only_once_the_operator_lists_it(area
     _accepted_run(graph, "ok")
     call = {"tool": "Bash", "call": '{"command": "MOCK command"}', "why": "MOCK reason"}
     _accepted_run(graph, "odd-call", suspect=[call, call])
-    assert set(cli.accepted_runs(graph, "sha")) == {"ok"}
+    assert set(cli.accepted_runs(graph, MOCK_SHA)) == {"ok"}
     err = capsys.readouterr().err
     assert "excluding odd-call: 2 suspect call(s)" in err and "--accept-suspect odd-call" in err
-    assert set(cli.accepted_runs(graph, "sha", accept_suspect={"odd-call"})) == {"ok", "odd-call"}
-    assert set(cli.accepted_runs(graph, "sha", accept_prior={"odd-call"})) == {"ok"}
+    assert set(cli.accepted_runs(graph, MOCK_SHA, accept_suspect={"odd-call"})) == {"ok", "odd-call"}
+    assert set(cli.accepted_runs(graph, MOCK_SHA, accept_prior={"odd-call"})) == {"ok"}
 
 
 def _codex_run(graph, label, session, suspect=()):
@@ -154,7 +153,7 @@ def test_a_codex_run_is_pooled_only_with_a_passing_audit_of_its_session_logs(are
     _codex_run(graph, "sol-main", _session(main=[call]), suspect=[call])
     _codex_run(graph, "sol-hidden", _session(main=[call]))  # only the session logs show the main thread's call
     _codex_run(graph, "sol-bad", {"passed": True})  # not a session audit: it lists no threads
-    assert set(cli.accepted_runs(graph, "sha")) == {"opus", "sol-ok"}
+    assert set(cli.accepted_runs(graph, MOCK_SHA)) == {"opus", "sol-ok"}
     err = capsys.readouterr().err
     assert "excluding sol-none: no readable audit of its session logs" in err
     assert "excluding sol-bad: no readable audit of its session logs" in err
@@ -163,7 +162,7 @@ def test_a_codex_run_is_pooled_only_with_a_passing_audit_of_its_session_logs(are
     assert "excluding sol-main: 1 suspect call(s)" in err  # the main thread's call counts once
     assert "excluding sol-hidden: 1 suspect call(s)" in err
     accept = {"sol-odd", "sol-main", "sol-hidden", "sol-none", "sol-failed", "sol-bad"}
-    assert set(cli.accepted_runs(graph, "sha", accept_suspect=accept)) == {
+    assert set(cli.accepted_runs(graph, MOCK_SHA, accept_suspect=accept)) == {
         "opus", "sol-ok", "sol-odd", "sol-main", "sol-hidden"}
     assert cli._sub_agent_suspects(_session(main=[call], helper=[call, call])) == [call, call]
     other = {**call, "call": '{"command": "MOCK other command"}'}
@@ -180,7 +179,7 @@ def test_the_runs_table_counts_every_threads_suspect_calls(area, graph, monkeypa
     _codex_run(graph, "sol-hidden", _session(main=[call]))
     reported = {}
     monkeypatch.setattr(cli.graph_mod, "load", lambda: graph)
-    monkeypatch.setattr(cli, "_prompt_sha", lambda: "sha")
+    monkeypatch.setattr(cli, "_prompt_sha", lambda: MOCK_SHA)
     monkeypatch.setattr(cli, "pool", lambda g, runs, n, seed: "MOCK pooled result")
     monkeypatch.setattr(cli.report, "write", lambda g, result, meta, out: reported.update(meta))
     args = argparse.Namespace(n=1, seed=0, allow_unaudited=False, accept_prior=[],
@@ -198,8 +197,8 @@ def test_runs_without_an_audit_are_excluded_unless_manual_and_allowed(area, grap
     meta = runners.read_meta(runners.RUNS / "man")
     meta["backend"] = "manual"
     runners.write_meta(runners.RUNS / "man", meta)
-    assert set(cli.accepted_runs(graph, "sha")) == set()
-    assert set(cli.accepted_runs(graph, "sha", allow_unaudited=True)) == {"man"}
+    assert set(cli.accepted_runs(graph, MOCK_SHA)) == set()
+    assert set(cli.accepted_runs(graph, MOCK_SHA, allow_unaudited=True)) == {"man"}
 
 
 def test_an_unfinished_claude_run_blocks_collection(area):
@@ -341,3 +340,83 @@ def test_a_recovered_transcript_with_an_added_event_is_not_collected(area, monke
         f.write(json.dumps({"type": "assistant", "message": {"content": [{"type": "text", "text": "MOCK"}]}}) + "\n")
     assert not runners.seal(run_dir)
     assert runners.read_meta(run_dir)["collect_error"]
+
+
+# --- the pre-dispatch review's fixes (2026-11-08) ---------------------------------------------------
+
+def test_a_subfleet_run_pools_only_if_its_model_read_its_arms_brief_unchanged(area, graph, capsys):
+    """S6: prompt.md must hash to the recorded brief, and prompt.sent.md (the lane's preamble, then the
+    brief) must hold it byte for byte."""
+    for label in ("ok", "no-sent", "altered", "wrong-copy"):
+        _accepted_run(graph, label)
+    (runners.RUNS / "no-sent" / "prompt.sent.md").unlink()
+    (runners.RUNS / "altered" / "prompt.sent.md").write_text("MOCK lane preamble\nMOCK brief: not one of the study's")
+    (runners.RUNS / "wrong-copy" / "prompt.md").write_text("MOCK another brief\n")
+    assert set(cli.accepted_runs(graph, MOCK_SHA)) == {"ok"}
+    err = capsys.readouterr().err
+    assert "excluding no-sent: it has no prompt.sent.md" in err
+    assert "excluding altered: its prompt.sent.md does not hold its arm's brief unchanged" in err
+    assert "excluding wrong-copy: its prompt.md does not hash to the brief it records" in err
+
+
+@pytest.mark.parametrize("finished,pooled", [("2026-11-10T11:59:59Z", True), ("2026-11-10T12:00:00Z", True),
+                                             ("2026-11-10T12:00:01Z", False), ("2026-11-10T12:00:00.5Z", False),
+                                             (None, False), ("not a time", False), ("2026-11-10T11:00:00", False)])
+def test_a_subfleet_run_that_finished_after_the_deadline_stays_out(area, graph, finished, pooled):
+    """S3: every answer must be in by cli.DEADLINE, 12:00Z on the Division's count day."""
+    _accepted_run(graph, "run")
+    meta = runners.read_meta(runners.RUNS / "run")
+    meta["finished_at"] = finished
+    runners.write_meta(runners.RUNS / "run", meta)
+    assert ("run" in cli.accepted_runs(graph, MOCK_SHA)) == pooled
+
+
+def test_a_late_run_stays_out(area, graph, capsys):
+    _accepted_run(graph, "late")
+    meta = runners.read_meta(runners.RUNS / "late")
+    meta["late"] = True
+    runners.write_meta(runners.RUNS / "late", meta)
+    assert cli.accepted_runs(graph, MOCK_SHA) == {}
+    assert "excluding late: dispatched after answers were collected" in capsys.readouterr().err
+
+
+def test_check_records_each_registered_repair_and_clears_a_stale_record(area, graph, monkeypatch):
+    monkeypatch.setattr(cli.graph_mod, "load", lambda: graph)
+    run = runners.RUNS / "rep"
+    MOCK_subfleet_meta(run, label="rep")
+    obj = MOCK_response(graph)
+    obj["nodes"]["turnout"]["forecasts"]["_note"] = None
+    (run / "response.md").write_text("```json\n" + json.dumps(obj, indent=1).replace('"notes": null', '"notes": null,') + "\n```\n")
+    assert cli.cmd_check(None) == 0
+    repairs = json.loads((run / cli.REPAIRS).read_text())
+    assert [r["repair"] for r in repairs] == ["trailing_comma", "dropped_key"] and cli.repaired(run)
+    assert "_note" not in json.loads((run / "response.json").read_text())["nodes"]["turnout"]["forecasts"]
+    (run / "response.md").write_text("```json\n" + json.dumps(MOCK_response(graph)) + "\n```\n")
+    assert cli.cmd_check(None) == 0 and not cli.repaired(run)
+    (run / "response.md").write_text("no JSON here")
+    assert cli.cmd_check(None) == 1
+    assert (run / "problems.txt").exists() and not (run / "response.json").exists() and not cli.repaired(run)
+
+
+def test_a_run_never_starts_in_a_used_work_directory(area):
+    """S4: a work directory that already holds files could hand the run another run's notes."""
+    (runners.WORK / "sub-1").mkdir(parents=True)
+    (runners.WORK / "sub-1" / "notes.md").write_text("MOCK leftover\n")
+    with pytest.raises(FileExistsError, match="not an empty directory"):
+        runners.prepare("sub-1", area.prompt, "sha", "subfleet")
+    assert not (runners.RUNS / "sub-1").exists()
+    (runners.WORK / "sub-2").mkdir(parents=True)  # empty: fine
+    runners.prepare("sub-2", area.prompt, "sha", "subfleet")
+
+
+def test_a_dispatch_that_starts_no_job_is_recorded_as_failed(area, monkeypatch):
+    """S2: with no job, no lane will answer, so the run counts as finished and collection need not
+    wait for it; its label stays spent."""
+    monkeypatch.setattr(runners.subprocess, "run",
+                        lambda cmd, **kw: SimpleNamespace(returncode=2, stdout="", stderr="MOCK lanes refused"))
+    with pytest.raises(RuntimeError, match="dispatch for sub-1 failed"):
+        runners.dispatch_subfleet("sub-1", area.prompt, "sha", "standard", "opus")
+    meta = runners.read_meta(runners.RUNS / "sub-1")
+    assert meta["state"] == "failed" and "job_id" not in meta and not runners.still_going(meta)
+    with pytest.raises(FileExistsError):
+        runners.dispatch_subfleet("sub-1", area.prompt, "sha", "standard", "opus")

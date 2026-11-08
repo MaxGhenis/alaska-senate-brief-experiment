@@ -34,7 +34,7 @@ cells:
 # Close bands, kept for the loader; this study's analysis (scripts/arms.py) does not use them.
 bands:
   Yc: [0.50, 0.515]   # 0.50 < share <= 0.515
-  Nc: [0.485, 0.50]   # 0.485 <= share <= 0.50
+  Nc: [0.485, 0.50]   # 0.485 < share <= 0.50
 
 quantiles: [0.05, 0.25, 0.50, 0.75, 0.95]
 

@@ -56,7 +56,7 @@ from pathlib import Path
 from .graph import ROOT
 
 RUNS = ROOT / "runs"
-# A run works in WORK/<label>, which it can see. The name says nothing about the study or its arms.
+# A run works in WORK/<label>, which it can see. The run label says nothing about its arm.
 WORK = Path.home() / ".cache" / "aksen-work"
 STAGE = Path.home() / ".cache" / "aksen-staging"
 JOBS = Path.home() / ".subfleet" / "jobs"  # subfleet's job store: <job_id>/a<N>/ per attempt
@@ -297,9 +297,11 @@ def prepare(label: str, prompt_path: Path, prompt_sha: str, backend: str, late: 
                                "dispatch anyway (the report will flag it)")
         if late:
             extra["late"] = True
+        work = WORK / label
+        if work.exists() and (not work.is_dir() or any(work.iterdir())):
+            raise FileExistsError(f"{work} is not an empty directory: a run must start in an empty one")
         run_dir.mkdir(parents=True)
         shutil.copyfile(prompt_path, run_dir / "prompt.md")
-        work = WORK / label
         work.mkdir(parents=True, exist_ok=True)
         write_meta(run_dir, {"label": label, "backend": backend, "prompt_sha256": prompt_sha,
                              "workdir": str(work), "prepared_at": now(), **extra})
@@ -358,6 +360,10 @@ def dispatch_subfleet(label: str, prompt_path: Path, prompt_sha: str, tier: str,
             fields["job_id"] = job_id
             break
     meta = record(run_dir, **fields)  # fresh: the run may have been abandoned while subfleet ran
+    if "job_id" not in meta:
+        # No job exists, so no lane will ever answer: the run is finished, as failed, and collection
+        # need not wait for it. Its label stays spent; no run replaces it.
+        meta = record(run_dir, state="failed", finished_at=now())
     if proc.returncode != 0 or "job_id" not in meta:
         raise RuntimeError(f"subfleet dispatch for {label} failed (rc {proc.returncode}): {proc.stderr[-2000:]}")
     return meta

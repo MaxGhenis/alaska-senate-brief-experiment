@@ -24,11 +24,12 @@ import json
 import re
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from . import audit, graph as graph_mod, prompt, report, runners
 from .graph import ROOT
-from .response import ResponseError, extract_json, parse, template
+from .response import ResponseError, parse, read_answer, template
 from .summarize import pool
 
 PROMPT_DIR = ROOT / "prompts"
@@ -195,17 +196,32 @@ def cmd_check(args) -> int:
         if not src.exists():
             continue
         try:
-            obj = extract_json(src.read_text())
+            obj, repairs = read_answer(g, src.read_text())
             parse(g, obj)
         except ResponseError as exc:
             bad += 1
             (d / "problems.txt").write_text("\n".join(exc.problems) + "\n")
+            (d / "response.json").unlink(missing_ok=True)
+            (d / REPAIRS).unlink(missing_ok=True)
             print(f"{d.name}: {len(exc.problems)} problem(s); see runs/{d.name}/problems.txt")
             continue
         (d / "response.json").write_text(json.dumps(obj, indent=1) + "\n")
         (d / "problems.txt").unlink(missing_ok=True)
-        print(f"{d.name}: ok")
+        if repairs:
+            (d / REPAIRS).write_text(json.dumps(repairs, indent=1) + "\n")
+            print(f"{d.name}: ok after {len(repairs)} registered repair(s); see runs/{d.name}/{REPAIRS}")
+        else:
+            (d / REPAIRS).unlink(missing_ok=True)
+            print(f"{d.name}: ok")
     return 1 if bad else 0
+
+
+REPAIRS = "repairs.json"
+
+
+def repaired(run_dir: Path) -> bool:
+    """Whether `i86 check` made a registered repair to the run's answer (`scripts/arms.py --strict`)."""
+    return (run_dir / REPAIRS).exists()
 
 
 def cmd_audit(args) -> int:
@@ -272,14 +288,44 @@ def _codex_suspects(transcript: list, session: dict) -> list:
     return [*max(transcript, main, key=len), *_sub_agent_suspects(session)]
 
 
+# Every answer must be in before the Division of Elections' count on 2026-11-10: a subfleet run that
+# finished later (scripts/deadline_guard.py kills runs still going at this time) stays out.
+DEADLINE = "2026-11-10T12:00:00Z"
+
+
+def _utc(text):
+    """An ISO 8601 time with a zone (a trailing Z or an offset), or None."""
+    try:
+        when = datetime.fromisoformat(str(text).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return when if when.tzinfo is not None else None
+
+
+def _prompt_problem(run_dir: Path, meta: dict) -> str | None:
+    """Why a subfleet run's model may not have read its arm's brief unchanged, or None.
+    runs/<label>/prompt.md must hash to the brief the run records, and prompt.sent.md, what the lane
+    gave the model, must hold those bytes unchanged (a Claude lane puts its own preamble first)."""
+    brief, sent = run_dir / "prompt.md", run_dir / "prompt.sent.md"
+    if not brief.is_file() or hashlib.sha256(brief.read_bytes()).hexdigest() != meta.get("prompt_sha256"):
+        return "its prompt.md does not hash to the brief it records"
+    if not sent.is_file():
+        return "it has no prompt.sent.md, so what the model read is unknown"
+    if brief.read_bytes() not in sent.read_bytes():
+        return "its prompt.sent.md does not hold its arm's brief unchanged"
+    return None
+
+
 def accepted_runs(g, prompt_sha, allow_unaudited: bool = False, accept_prior: set[str] = frozenset(),
                   accept_suspect: set[str] = frozenset()) -> dict:
     """Runs with a parsed response, the current prompt's hash (`prompt_sha`: one hash, or {arm: hash},
     matched against the run's recorded arm), for a run with a family the model SERVED names, a passing
     audit with no suspect calls
     and no prior context about these questions; a Codex run also needs a passing audit of its session
-    logs, whose sub-agents' suspect calls count with the rest. The operator may read a run's suspect
-    calls, or its prior context, and list it in `accept_suspect` or `accept_prior` to pool it anyway."""
+    logs, whose sub-agents' suspect calls count with the rest. A subfleet run also needs its arm's brief,
+    unchanged, in what the lane gave the model, and a finish by DEADLINE; a run dispatched `--late`
+    stays out. The operator may read a run's suspect calls, or its prior context, and list it in
+    `accept_suspect` or `accept_prior` to pool it anyway."""
     runs = {}
     for d in run_dirs():
         resp = d / "response.json"
@@ -290,6 +336,18 @@ def accepted_runs(g, prompt_sha, allow_unaudited: bool = False, accept_prior: se
         if want is None or meta.get("prompt_sha256") != want:
             print(f"excluding {d.name}: made with prompt {str(meta.get('prompt_sha256'))[:12]}, not "
                   f"{str(want)[:12]} (arm {meta.get('arm')})", file=sys.stderr)
+            continue
+        if meta.get("backend") == "subfleet":
+            why = _prompt_problem(d, meta)
+            if why:
+                print(f"excluding {d.name}: {why}", file=sys.stderr)
+                continue
+        if meta.get("late"):
+            print(f"excluding {d.name}: dispatched after answers were collected (--late)", file=sys.stderr)
+            continue
+        finished = _utc(meta.get("finished_at"))
+        if meta.get("backend") == "subfleet" and (finished is None or finished > _utc(DEADLINE)):
+            print(f"excluding {d.name}: finished at {meta.get('finished_at')}, not by {DEADLINE}", file=sys.stderr)
             continue
         family = meta.get("family")
         if family is not None and meta.get("model_served") != SERVED.get(family):
@@ -370,7 +428,8 @@ def cmd_prereg(args) -> int:
              *ROOT.glob("pyproject.toml"), *sorted((ROOT / "src" / "i86").glob("*.py")),
              *sorted((ROOT / "scripts").glob("*.py"))]
     for d in run_dirs():
-        files += [p for p in (d / "meta.json", d / "response.md", d / "response.json", d / "audit.json",
+        files += [p for p in (d / "meta.json", d / "prompt.md", d / "prompt.sent.md", d / "response.md",
+                              d / "response.json", d / REPAIRS, d / "problems.txt", d / "audit.json",
                               d / "transcript.jsonl") if p.exists()]
         # A Codex run's session logs, its sub-agents' included, and their audit
         # (scripts/audit_codex_sessions.py): the transcript records only the main thread.

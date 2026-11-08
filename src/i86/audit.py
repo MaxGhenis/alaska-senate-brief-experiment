@@ -721,8 +721,16 @@ def _covers_protected(root: Path, roots: list[Path]) -> bool:
 
 
 def _mask_workdir(text: str, workdir: Path) -> str:
-    """Replace the run's own work directory, but not a sibling that starts with the same name."""
-    return re.sub(re.escape(str(workdir)) + r"(?=[/'\"\\\s]|$)", "<workdir>", text)
+    """Replace the run's own work directory, but not a sibling that starts with the same name. The
+    directory may be spelled from / or, under the home directory, from ~, $HOME or ${HOME}."""
+    spellings = [re.escape(str(workdir))]
+    try:
+        tail = re.escape("/" + Path(workdir).relative_to(HOME).as_posix())
+    except ValueError:
+        tail = None
+    if tail is not None and Path(workdir).is_absolute():
+        spellings += ["~" + tail, r"\$HOME" + tail, r"\$\{HOME\}" + tail]
+    return re.sub("(?:" + "|".join(spellings) + r")(?=[/'\"\\\s]|$)", "<workdir>", text)
 
 
 def _normpath(path) -> Path:

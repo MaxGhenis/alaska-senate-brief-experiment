@@ -212,9 +212,12 @@ def test_an_audit_json_that_is_not_json_keeps_its_run_out_of_the_pool(tmp_path, 
 
     monkeypatch.setattr(runners, "RUNS", tmp_path / "runs")
     g = graph_mod.load(I86_GRAPH)
+    from mock import MOCK_SHA, MOCK_subfleet_meta
+
     d = runners.RUNS / "MOCK-run"
-    d.mkdir(parents=True)
-    (d / "meta.json").write_text(json.dumps({"prompt_sha256": "MOCKSHA", "backend": "subfleet"}))
+    MOCK_subfleet_meta(d)
     (d / "response.json").write_text(json.dumps(MOCK_response(g)))
+    (d / "audit.json").write_text(json.dumps({"events": 3, "passed": True, "violations": [], "suspect": []}))
+    assert "MOCK-run" in cli.accepted_runs(g, MOCK_SHA)  # the control: with a whole audit, it pools
     (d / "audit.json").write_text(text)
-    assert "MOCK-run" not in cli.accepted_runs(g, "MOCKSHA")
+    assert "MOCK-run" not in cli.accepted_runs(g, MOCK_SHA)

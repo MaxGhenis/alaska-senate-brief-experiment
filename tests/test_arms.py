@@ -307,44 +307,122 @@ def test_mock_main_effects_recover_additive_blocks(base_o, base_s, d, g_, noise)
 
 
 @given(xs=st.lists(num, min_size=2, max_size=8), ys=st.lists(num, min_size=2, max_size=8))
-def test_mock_a_two_group_difference_is_welchs_t(xs, ys):
-    """Differential: a difference of two means gets Welch's statistic and degrees of freedom. (scipy's
-    own formula squares each variance unscaled, so it underflows where these don't; those inputs are
-    skipped.)"""
-    assume(len(set(xs)) > 1 and len(set(ys)) > 1)
-    import statistics
-    import sys
-    assume(all((statistics.variance(v) / len(v)) ** 2 > sys.float_info.min for v in (xs, ys)))
-    e = arms.combination([(1.0, xs, "x"), (-1.0, ys, "y")])
-    ref = stats.ttest_ind(xs, ys, equal_var=False)
+def test_mock_two_arms_of_one_family_give_the_pooled_t(xs, ys):
+    """Differential: a difference of one family's two arm means gets the pooled two-sample t statistic
+    and its n1 + n2 - 2 degrees of freedom."""
+    assume(len(set(xs)) > 1 or len(set(ys)) > 1)
+    c = {("opus", "00"): xs, ("opus", "01"): ys}
+    e = arms.combination(c, {("opus", "00"): 1.0, ("opus", "01"): -1.0})
+    ref = stats.ttest_ind(xs, ys, equal_var=True)
     assume(math.isfinite(ref.statistic) and abs(ref.statistic) < 1e6)
     assert math.isclose(e.t, ref.statistic, rel_tol=1e-6, abs_tol=1e-9)
-    assert math.isclose(e.df, ref.df, rel_tol=1e-6)
+    assert e.df == len(xs) + len(ys) - 2
+
+
+@settings(max_examples=60, deadline=None)
+@given(counts=st.lists(st.integers(1, 4), min_size=4, max_size=4), seed=st.integers(0, 10**6),
+       w=st.lists(st.floats(-2, 2), min_size=4, max_size=4))
+def test_mock_one_familys_contrast_matches_least_squares(counts, seed, w):
+    """Differential: for one family, any contrast of its four arm means has the standard error that least
+    squares on arm indicators gives, s^2 c'(X'X)^-1 c with s^2 = RSS / (N - 4)."""
+    import numpy as np
+    rng = np.random.default_rng(seed)
+    assume(sum(counts) > 4 and any(abs(x) > 1e-3 for x in w))
+    c = {("sol", a): list(rng.normal(size=k)) for a, k in zip(arms.ARMS, counts)}
+    weights = {("sol", a): x for a, x in zip(arms.ARMS, w)}
+    e = arms.combination(c, weights)
+    X = np.zeros((sum(counts), 4))
+    y = np.concatenate([c[("sol", a)] for a in arms.ARMS])
+    row = 0
+    for j, k in enumerate(counts):
+        X[row:row + k, j] = 1
+        row += k
+    beta, *_ = np.linalg.lstsq(X, y, rcond=None)
+    s2 = float(((y - X @ beta) ** 2).sum()) / (len(y) - 4)
+    cv = np.array([weights[("sol", a)] for a in arms.ARMS])
+    assert math.isclose(e.est, float(cv @ beta), rel_tol=1e-9, abs_tol=1e-9)
+    assert math.isclose(e.se, math.sqrt(s2 * float(cv @ np.linalg.inv(X.T @ X) @ cv)), rel_tol=1e-6, abs_tol=1e-12)
+    assert e.df == len(y) - 4
 
 
 @given(vals=st.lists(num, min_size=2, max_size=10))
 def test_mock_one_group_is_its_mean_with_its_standard_error(vals):
-    e = arms.combination([(1.0, vals, "x")])
+    e = arms.combination({("opus", "00"): vals}, {("opus", "00"): 1.0})
     assert close(e.est, sum(vals) / len(vals), sum(map(abs, vals)))
-    assert e.df == pytest.approx(len(vals) - 1) or e.se == 0
+    assert e.df == len(vals) - 1 or e.se == 0
     assert e.se >= 0
 
 
+def test_mock_two_families_combine_by_welch_satterthwaite():
+    """MOCK: one arm per family, pooled variances 1 and 4 on 2 and 3 df, weights 1 and -1: variance
+    1/3 + 4/4, and Welch-Satterthwaite (4/3)^2 / ((1/3)^2/2 + 1/3)."""
+    c = {("opus", "00"): [0.0, 1.0, 2.0], ("sol", "00"): [0.0, 2.0, 4.0, 6.0]}
+    s2_sol = sum((x - 3.0) ** 2 for x in c[("sol", "00")]) / 3
+    e = arms.combination(c, {("opus", "00"): 1.0, ("sol", "00"): -1.0})
+    v_o, v_s = 1.0 / 3, s2_sol / 4
+    assert e.est == pytest.approx(1.0 - 3.0)
+    assert e.se == pytest.approx(math.sqrt(v_o + v_s))
+    assert e.df == pytest.approx((v_o + v_s) ** 2 / (v_o ** 2 / 2 + v_s ** 2 / 3))
+
+
 def test_mock_tiny_variances_keep_their_degrees_of_freedom():
-    """Two groups of two with equal, tiny variances: Welch-Satterthwaite gives 2, which squaring the
+    """Two families of two with equal, tiny variances: Welch-Satterthwaite gives 2, which squaring the
     unscaled variances would lose to underflow."""
     vals = [0.0, 6.7e-102]
-    e = arms.combination([(1.0, vals, "x"), (-1.0, vals, "y")])
+    e = arms.combination({("opus", "00"): vals, ("sol", "00"): vals}, {("opus", "00"): 1.0, ("sol", "00"): -1.0})
     assert e.df == pytest.approx(2.0)
-    flat = arms.combination([(1.0, [3.0, 3.0], "x"), (-1.0, [1.0, 1.0], "y")])
+    flat = arms.combination({("opus", "00"): [3.0, 3.0], ("sol", "00"): [1.0, 1.0]},
+                            {("opus", "00"): 1.0, ("sol", "00"): -1.0})
     assert (flat.est, flat.se) == (2.0, 0.0) and math.isnan(flat.df)
 
 
 def test_mock_families_count_equally_however_many_runs_each_has():
-    rows = [("opus", "10", 1.0)] * 5 + [("sol", "10", 3.0)]
-    assert arms.arm_mean(rows, "10").est == pytest.approx(2.0)
-    assert math.isnan(arms.arm_mean(rows, "10").se)  # one Sol run: no variance
-    assert math.isnan(arms.arm_mean(rows, "00").est)  # no runs at all
+    """MOCK: five Opus runs per arm at about 1 and one Sol run per arm at 3. The arm mean weights the
+    families equally; Sol's runs leave no within-arm variance to pool, so no standard error."""
+    rows = ([("opus", a, 1.0 + 0.01 * i) for a in arms.ARMS for i in range(-2, 3)]
+            + [("sol", a, 3.0) for a in arms.ARMS])
+    e = arms.arm_mean(rows, "10")
+    assert e.est == pytest.approx(2.0) and math.isnan(e.se)
+    assert e.n == {"opus": 5, "sol": 1} and e.families == arms.FAMILIES
+
+
+def test_mock_a_family_without_a_run_in_some_arm_drops_out_of_every_estimate():
+    """MOCK: Opus loses every run of arm 00. Every estimate then uses Sol's runs alone, and with Sol
+    incomplete too, every estimate is undefined."""
+    full = mock_rows(3, lambda fam, arm, i: {"opus": 100.0, "sol": 0.0}[fam] + 5.0 * (arm[1] == "1") + 0.1 * i)
+    rows = [r for r in full if (r[0], r[1]) != ("opus", "00")]
+    sol = [r for r in full if r[0] == "sol"]
+    for contrast in arms.CONTRASTS.values():
+        e = arms.effect(rows, contrast)
+        assert e.families == ("sol",)
+        assert e.est == pytest.approx(arms.family_effect(sol, contrast, "sol").est)
+        assert e.se == pytest.approx(arms.family_effect(sol, contrast, "sol").se)
+        assert arms.randomization_p(rows, contrast, draws=300, seed=4) == arms.randomization_p(sol, contrast, draws=300, seed=4)
+    assert arms.arm_mean(rows, "01").est == pytest.approx(5.0 + 0.1)  # Sol's mean alone
+    assert arms.effect(rows, arms.MAIN_P).est == pytest.approx(5.0)
+    neither = [r for r in rows if (r[0], r[1]) != ("sol", "11")]
+    assert arms.complete_families(arms.cells(neither)) == ()
+    assert math.isnan(arms.effect(neither, arms.MAIN_E).est) and math.isnan(arms.arm_mean(neither, "00").est)
+    assert math.isnan(arms.randomization_p(neither, arms.MAIN_E, draws=10))
+
+
+@settings(max_examples=80, deadline=None)
+@given(counts=st.lists(st.integers(0, 3), min_size=8, max_size=8), seed=st.integers(0, 10**6))
+def test_mock_each_effect_is_its_contrast_of_the_arm_means(counts, seed):
+    """Invariant: whatever runs survive, each registered effect equals the same contrast of the arm
+    means, over the same families, and both are undefined together."""
+    import random as random_mod
+    rng = random_mod.Random(seed)
+    cells_ = [(f, a) for f in arms.FAMILIES for a in arms.ARMS]
+    rows = [(f, a, rng.uniform(-5, 5)) for (f, a), k in zip(cells_, counts) for _ in range(k)]
+    for contrast in arms.CONTRASTS.values():
+        e = arms.effect(rows, contrast)
+        means = {a: arms.arm_mean(rows, a) for a in arms.ARMS}
+        if not arms.complete_families(arms.cells(rows)):
+            assert math.isnan(e.est) and all(math.isnan(m.est) for m in means.values())
+            continue
+        assert e.est == pytest.approx(sum(w * means[a].est for a, w in contrast.items()), abs=1e-9)
+        assert all(m.families == e.families for m in means.values())
 
 
 def test_mock_randomization_p_is_one_without_differences_and_small_with_a_clean_split():
@@ -398,6 +476,12 @@ def test_mock_holm_matches_its_definition_and_never_lowers_a_p(ps):
         assert adj[k] == pytest.approx(max(min(1.0, (m - j) * named[order[j]]) for j in range(i + 1)))
         assert named[k] <= adj[k] + 1e-15 and adj[k] <= 1.0
     assert arms.holm({"a": 0.01, "b": 0.04, "c": 0.03}) == pytest.approx({"a": 0.03, "b": 0.06, "c": 0.06})
+
+
+def test_mock_an_undefined_primary_counts_toward_holm_and_stays_undefined():
+    adj = arms.holm({"a": 0.01, "b": math.nan, "c": 0.03})
+    assert adj["a"] == pytest.approx(0.03) and adj["c"] == pytest.approx(0.06) and math.isnan(adj["b"])
+    assert all(math.isnan(v) for v in arms.holm({"a": math.nan, "b": math.nan}).values())
 
 
 def test_mock_family_effects_recover_each_familys_own_effect():

@@ -6,6 +6,8 @@
   Elections' 7-day count on 2026-11-10, its first new results since election week.
 
 Each run cancelled or killed is then marked abandoned (`i86 abandon`), so `i86 collect` can proceed.
+A run with no Subfleet job that is not marked finished (a dispatch cut off before Subfleet answered) is
+marked abandoned at KILL_AT too.
 The guard checks every 60 seconds and exits once every run has finished or been abandoned, printing
 each run's state, so a session waiting on it wakes up.
 
@@ -25,7 +27,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 RUNS = ROOT / "runs"
 I86 = ROOT / ".venv" / "bin" / "i86"
-FINISHED = {"succeeded", "failed", "cancelled", "lost"}
+# As src/i86/runners.py: the states after which a run produces nothing more.
+FINISHED = {"succeeded", "failed", "cancelled", "canceled", "lost", "killed", "expired", "abandoned"}
 NOT_STARTED = {"queued", "waiting"}
 
 
@@ -51,9 +54,14 @@ def runs() -> dict[str, dict]:
         if not meta_path.exists():
             continue
         meta = json.loads(meta_path.read_text())
-        if meta.get("backend") == "subfleet" and meta.get("job_id"):
+        if meta.get("backend") == "subfleet":
             out[d.name] = meta
     return out
+
+
+def abandon(label: str) -> None:
+    ab = subprocess.run([str(I86), "abandon", label], capture_output=True, text=True, cwd=ROOT)
+    print(f"{stamp()} {label}: {ab.stdout.strip()} {ab.stderr.strip()[-300:]}", flush=True)
 
 
 def stop(label: str, job_id: str, reason: str) -> None:
@@ -61,8 +69,7 @@ def stop(label: str, job_id: str, reason: str) -> None:
                           capture_output=True, text=True)
     print(f"{stamp()} {label}: subfleet kill rc {kill.returncode} {kill.stdout.strip()[-300:]} {kill.stderr.strip()[-300:]}",
           flush=True)
-    ab = subprocess.run([str(I86), "abandon", label], capture_output=True, text=True, cwd=ROOT)
-    print(f"{stamp()} {label}: {ab.stdout.strip()} {ab.stderr.strip()[-300:]}", flush=True)
+    abandon(label)
 
 
 def main(argv=None) -> int:
@@ -81,6 +88,13 @@ def main(argv=None) -> int:
             if meta.get("state") == "abandoned" or (RUNS / label / "response.md").exists():
                 states[label] = meta.get("state") or "collected"
                 continue
+            if not meta.get("job_id"):
+                state = meta.get("state") or "no job"
+                states[label] = state
+                if state not in FINISHED and now >= kill_at:
+                    abandon(label)
+                    states[label] = "abandoned"
+                continue
             state = job_state(meta["job_id"])
             states[label] = state
             if state in FINISHED:
@@ -94,7 +108,7 @@ def main(argv=None) -> int:
         if args.once:
             print(f"{stamp()} " + ", ".join(f"{k}={v}" for k, v in states.items()), flush=True)
             return 0
-        if all(s in FINISHED or s == "abandoned" for s in states.values()):
+        if all(s in FINISHED or s == "collected" for s in states.values()):
             print(f"{stamp()} every run is finished or abandoned: "
                   + ", ".join(f"{k}={v}" for k, v in states.items()), flush=True)
             return 0

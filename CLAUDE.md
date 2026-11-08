@@ -22,9 +22,10 @@ primary outcomes and the exclusions; read it first.
 - Every run must finish before the Division of Elections' count on 2026-11-10. While runs are out,
   keep `scripts/deadline_guard.py` running in the background: it cancels runs still queued at 09:00Z
   and kills runs still going at 12:00Z, then marks them abandoned.
-- Before `scripts/arms.py` runs, a separate model reviewer reads each flagged run's flag with the
-  run's label masked and its arm withheld. Accept only the flags it clears, then run the
-  `--accept-all-flags` sensitivity check as well.
+- Before `scripts/arms.py` runs, a separate model reviewer reads each flagged run's flag. Hide the
+  run's label and arm from it, and cut any quote of either block from the flag's text, since a quote
+  gives the arm away. Accept only the flags it clears, then run the `--accept-all-flags` and
+  `--strict` sensitivity checks as well.
 - The package keeps the name `i86` and the ballot-measure vocabulary of the DC map it descends from:
   `fail` ranges hold Sullivan wins, `pass` ranges hold Peltola wins, and the map's conditions say
   `passes` for a Peltola win.

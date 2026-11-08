@@ -95,3 +95,28 @@ def test_mock_a_run_without_its_arm_is_refused(mock_runs):
     (d / "meta.json").write_text(json.dumps(meta))
     with pytest.raises(SystemExit, match="lacks a family and arm"):
         arms_script.main(["--draws", "10", "--secondary-draws", "10", "--out", str(mock_runs / "out")])
+
+
+def test_mock_strict_leaves_out_the_repaired_runs_and_the_summary_lists_them(mock_runs):
+    (mock_runs / "runs" / "opus-01" / "repairs.json").write_text(json.dumps([{"repair": "dropped_key", "key": "_note"}]))
+    out = mock_runs / "out"
+    arms_script.main(["--draws", "50", "--secondary-draws", "10", "--out", str(out)])
+    assert "opus-01" in {r["run"] for r in read(out / "per_run.csv")}
+    assert "repaired: opus-01" in (out / "summary.md").read_text()
+    arms_script.main(["--draws", "50", "--secondary-draws", "10", "--out", str(out), "--strict"])
+    assert "opus-01" not in {r["run"] for r in read(out / "per_run.csv")}
+    assert "Repaired runs left out (--strict)" in (out / "summary.md").read_text()
+
+
+def test_mock_a_family_that_loses_an_arm_drops_out_and_the_summary_says_so(mock_runs):
+    """MOCK: every Opus run in arm 00 fails its audit, so every estimate uses Sol's runs alone."""
+    for row in cli.assignment()["runs"]:
+        if row["family"] == "opus" and row["arm"] == "00":
+            (mock_runs / "runs" / row["label"] / "audit.json").write_text(
+                json.dumps({"passed": False, "violations": [{"call": "MOCK"}], "suspect": []}))
+    out = mock_runs / "out"
+    assert arms_script.main(["--draws", "200", "--secondary-draws", "10", "--out", str(out)]) == 0
+    primary = {r["outcome"]: r for r in read(out / "effects.csv") if r["registered_primary"] == "True"}
+    assert {r["families"] for r in primary.values()} == {"sol"}
+    assert float(primary["E1 effect index"]["estimate"]) == pytest.approx(STEP)
+    assert "Only sol has a run in every arm" in (out / "summary.md").read_text()
