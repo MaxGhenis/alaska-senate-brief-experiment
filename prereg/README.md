@@ -15,3 +15,4 @@ prereg/<folder>/SHA256SUMS.ots` once the stamp has a Bitcoin attestation.
 
 | Folder | Written | Covers |
 |---|---|---|
+| `registration/` | 11:09Z 11/08 | the registration (`README.md`), the map, the four briefs, the template, the context, the assignment, the package configuration, the code and the launchd jobs, before the first dispatch |
