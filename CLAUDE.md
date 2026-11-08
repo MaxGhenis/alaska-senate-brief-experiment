@@ -19,9 +19,11 @@ primary outcomes and the exclusions; read it first.
 - Dispatch each label in `design/assignment.json` once, in the file's order, only on Subfleet lanes:
   Opus 5.5 with `--tier standard -m opus`, GPT-6.1 Sol with `--tier hard`. Never on the OpenAI API.
 - Never copy an answer into `runs/` while any run is still going; `i86 collect` enforces this.
-- Every run must finish before the Division of Elections' count on 2026-11-10. While runs are out,
-  keep `scripts/deadline_guard.py` running in the background: it cancels runs still queued at 09:00Z
-  and kills runs still going at 12:00Z, then marks them abandoned.
+- Every run must finish before the Division of Elections' count on 2026-11-10. Before the first
+  dispatch, copy both jobs in `launchd/` to `~/Library/LaunchAgents/` and load each with `launchctl
+  bootstrap gui/$(id -u) <plist>`. `scripts/deadline_guard.py` cancels runs still queued at 09:00Z
+  and kills runs still going at 12:00Z, then marks them abandoned; `scripts/seal.py` seals the
+  answers once every run has ended. Unload both after `scripts/seal.py` pushes `prereg/collected/`.
 - Before `scripts/arms.py` runs, a separate model reviewer reads each flagged run's flag. Hide the
   run's label and arm from it, and cut any quote of either block from the flag's text, since a quote
   gives the arm away. Accept only the flags it clears, then run the `--accept-all-flags` and

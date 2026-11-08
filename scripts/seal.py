@@ -4,9 +4,12 @@ The answers must be stamped before the Alaska Division of Elections' 7-day count
 first new results since election week, so this runs two ways:
 
 - `--now`, by hand, once every run has finished or been abandoned;
-- as a launchd fallback, waiting until ACT_AFTER (12:00Z on November 8) and then sealing as soon as
-  every run has finished or been abandoned, unless someone has already sealed. It gives up at
-  GIVE_UP (16:00Z on November 10, 7 a.m. in Juneau): after that, a stamp might not predate the count.
+- as a launchd fallback (launchd/com.maxghenis.aksen-seal.plist), waiting until ACT_AFTER (12:00Z on
+  November 8) and then sealing as soon as every run in design/assignment.json has finished or been
+  abandoned, unless someone has already sealed. A label not yet dispatched counts as still going until
+  KILL_AT (12:00Z on November 10), when it can no longer finish in time. The fallback gives up at
+  GIVE_UP (16:00Z on November 10, 7 a.m. in Juneau), sealed or not: after that, a stamp might not
+  predate the count.
 
 Whoever seals first takes MARKER, so the two never run together; a marker older than 15 minutes
 without a sealed folder counts as abandoned. Sealing first runs `i86 recover` on every run whose
@@ -14,9 +17,15 @@ Subfleet job was lost, whatever its arm, then `i86 collect`, `check`, `audit`,
 `scripts/audit_codex_sessions.py` and `prereg`. It keeps the manifest and its proof in
 prereg/collected/, adds that folder to prereg/README.md, and commits and pushes. The record counts as
 sealed once that folder is committed and pushed; until then, the fallback tries again every minute,
-and a pass that fails, at any step, ends nothing but that pass.
+and a pass that fails, at any step, ends nothing but that pass. A pass also stops, to try again, when
+Subfleet does not say whether a run was lost, when `i86 recover` or `i86 collect` hits an error that a
+later try may not (a succeeded run whose answer Subfleet did not hand over among them), or when
+`prereg` writes no fresh manifest or its stamp fails. From LAST_CALL (30 minutes before GIVE_UP; by
+hand, `--last-call`), it stops only when it has no fresh manifest: it seals what there is, without a
+missing answer, or with hashes alone when the stamp fails, and the commit message says so. A run still
+going at LAST_CALL gets one pass of scripts/deadline_guard.py, which kills and abandons it.
 
-    .venv/bin/python scripts/seal.py --now [--dry-run]
+    .venv/bin/python scripts/seal.py --now [--last-call] [--dry-run]
     .venv/bin/python scripts/seal.py [--act-after 2026-11-08T12:00:00Z] [--give-up 2026-11-10T16:00:00Z] [--once]
 """
 
@@ -29,7 +38,7 @@ import shutil
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -39,6 +48,10 @@ FOLDER = PREREG / "collected"
 I86 = ROOT / ".venv" / "bin" / "i86"
 PYTHON = ROOT / ".venv" / "bin" / "python"
 CODEX_AUDIT = ROOT / "scripts" / "audit_codex_sessions.py"
+GUARD = ROOT / "scripts" / "deadline_guard.py"
+ASSIGNMENT = ROOT / "design" / "assignment.json"
+KILL_AT = "2026-11-10T12:00:00Z"  # as DEADLINE in src/i86/cli.py and --kill-at in scripts/deadline_guard.py
+LAST_CALL = timedelta(minutes=30)  # before GIVE_UP: seal what there is
 MARKER = Path.home() / ".cache" / "aksen-sealing"
 STALE_S = 900
 FINISHED = {"succeeded", "failed", "cancelled", "canceled", "lost", "killed", "expired", "abandoned"}
@@ -70,9 +83,19 @@ def job_state(job_id: str) -> str | None:
     return (json.loads(proc.stdout).get("job") or {}).get("state")
 
 
-def pending() -> dict[str, str]:
-    """Runs that may still produce an answer, with their states (as `i86 collect` decides)."""
+def assigned() -> list[str]:
+    """Every run label in design/assignment.json."""
+    return [row["label"] for row in json.loads(ASSIGNMENT.read_text())["runs"]]
+
+
+def pending(now: datetime | None = None) -> dict[str, str]:
+    """Runs that may still produce an answer, with their states (as `i86 collect` decides), and, before
+    KILL_AT, each assigned label not yet dispatched. A run whose state Subfleet does not give counts."""
+    now = now or datetime.now(timezone.utc)
     out = {}
+    have = {d.name for d in RUNS.iterdir()} if RUNS.exists() else set()
+    if now < utc(KILL_AT):
+        out.update({label: "not dispatched" for label in assigned() if label not in have})
     for d in sorted(RUNS.iterdir()) if RUNS.exists() else []:
         meta_path = d / "meta.json"
         if not meta_path.exists() or (d / "response.md").exists():
@@ -86,10 +109,11 @@ def pending() -> dict[str, str]:
     return out
 
 
-def lost() -> list[str]:
+def lost() -> tuple[list[str], list[str]]:
     """Runs whose Subfleet job was lost, neither collected, abandoned nor recovered: `i86 recover` may
-    take their answers from their own transcripts. Sealing tries every one, whatever its arm."""
-    out = []
+    take their answers from their own transcripts. Sealing tries every one, whatever its arm. Also the
+    runs Subfleet did not say about, which may be lost too."""
+    out, unknown = [], []
     for d in sorted(RUNS.iterdir()) if RUNS.exists() else []:
         meta_path = d / "meta.json"
         if not meta_path.exists() or (d / "response.md").exists():
@@ -98,9 +122,12 @@ def lost() -> list[str]:
         if (meta.get("backend") != "subfleet" or not meta.get("job_id") or meta.get("state") == "abandoned"
                 or meta.get("recovered")):
             continue
-        if job_state(meta["job_id"]) == "lost":
+        state = job_state(meta["job_id"])
+        if state == "lost":
             out.append(d.name)
-    return out
+        elif state is None:
+            unknown.append(d.name)
+    return out, unknown
 
 
 def git(*args: str) -> subprocess.CompletedProcess:
@@ -140,26 +167,61 @@ def run(cmd: list) -> subprocess.CompletedProcess:
     return proc
 
 
-def seal(who: str) -> int:
+def seal(who: str, last_call: bool = False) -> int:
     """Collect, check, audit and stamp every answer into prereg/collected/ unless that folder exists,
-    then commit and push runs/ and prereg/. Returns 0 once everything is pushed."""
+    then commit and push runs/ and prereg/. Returns 0 once everything is pushed. Before the last call, a
+    step that a later try may mend stops the pass (returns 1); at the last call, only a missing manifest
+    does, and the commit message names what is missing."""
+    gaps = []
     if not FOLDER.exists():
-        for label in lost():
-            run([I86, "recover", label])  # fails, and changes nothing, unless the run can be recovered
+        lost_runs, unknown = lost()
+        if unknown:
+            if not last_call:
+                log(f"Subfleet did not say whether {', '.join(unknown)} were lost; not sealing")
+                return 1
+            gaps.append(f"Subfleet did not say whether {', '.join(unknown)} were lost")
+        for label in lost_runs:
+            rec = run([I86, "recover", label])  # changes nothing unless the run can be recovered
+            if rec.returncode not in (0, 2):  # 2: nothing to recover; anything else may pass
+                if not last_call:
+                    log(f"recovering {label} failed; not sealing")
+                    return 1
+                gaps.append(f"recovering {label} failed")
         collect = run([I86, "collect"])
-        if collect.returncode != 0 or "still going" in collect.stdout:
-            log("collect copied no answers; not sealing")
+        if "still going" in collect.stdout:
+            log("a run is still going: collect copied no answers; not sealing")
             return 1
+        if collect.returncode != 0:
+            if not last_call:
+                log("collect left a succeeded run's answer out; not sealing")
+                return 1
+            gaps.append("collect left a succeeded run's answer out (see each run's collect_error)")
         run([I86, "check"])  # exit 1 when an answer fails check: those stay out of the pool
         run([I86, "audit"])  # exit 1 when an audit fails: likewise
         run([PYTHON, CODEX_AUDIT])  # every thread behind each Sol run; exit 1 when one fails: likewise
+        sums, proof = PREREG / "SHA256SUMS", PREREG / "SHA256SUMS.ots"
+        started = time.time()
         prereg = run([I86, "prereg"])
+        # Fresh: written by this prereg (passes run a minute apart), listing every answer collected.
+        listed = ({line.split("  ", 1)[1] for line in sums.read_text().splitlines() if "  " in line}
+                  if sums.exists() and sums.stat().st_mtime >= started - 1 else None)
+        if listed is None or any(str(p.relative_to(ROOT)) not in listed for p in RUNS.glob("*/response.md")):
+            log("prereg wrote no fresh manifest of every answer; not sealing")
+            return 1
+        has_proof = prereg.returncode == 0 and proof.exists()
+        if not has_proof:
+            if not last_call:
+                log("the OpenTimestamps stamp failed; not sealing yet")
+                return 1
+            gaps.append("the OpenTimestamps stamp failed: hashes only")
         staging = FOLDER.with_name(FOLDER.name + ".partial")
         shutil.rmtree(staging, ignore_errors=True)
         staging.mkdir(parents=True)
-        for name in ("SHA256SUMS", "SHA256SUMS.ots"):
-            if (PREREG / name).exists() and (name == "SHA256SUMS" or prereg.returncode == 0):
-                shutil.copy2(PREREG / name, staging / name)
+        shutil.copy2(sums, staging / sums.name)
+        if has_proof:
+            shutil.copy2(proof, staging / proof.name)
+        if gaps:
+            (staging / "GAPS.txt").write_text("".join(f"{g}\n" for g in gaps))
         staging.rename(FOLDER)  # the folder appears whole or not at all
         when = datetime.now(timezone.utc).strftime("%H:%MZ %m/%d")
         readme = PREREG / "README.md"
@@ -172,8 +234,11 @@ def seal(who: str) -> int:
             readme.write_text("\n".join(lines) + "\n")
     stamped = ("stamped with OpenTimestamps" if (FOLDER / "SHA256SUMS.ots").exists()
                else "OpenTimestamps stamp FAILED; hashes only")
+    gaps_file = FOLDER / "GAPS.txt"
+    noted = (f"Sealed at the last call, with gaps:\n{gaps_file.read_text()}\n" if gaps_file.exists() else "")
     message = (f"Collect every run's answer and transcript, check, audit and stamp them ({stamped})\n\n"
                f"Sealed by {who} at {stamp()}, before the Division of Elections' count on 2026-11-10.\n\n"
+               f"{noted}"
                "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>")
     run(["git", "add", "runs", "prereg"])
     if git("diff", "--cached", "--quiet", "--", "runs", "prereg").returncode != 0:
@@ -187,6 +252,8 @@ def seal(who: str) -> int:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--now", action="store_true", help="seal now, by hand; fails if any run is still going")
+    ap.add_argument("--last-call", action="store_true",
+                    help="with --now: seal what there is, without a missing answer or stamp")
     ap.add_argument("--act-after", default="2026-11-08T12:00:00Z")
     ap.add_argument("--give-up", default="2026-11-10T16:00:00Z")
     ap.add_argument("--once", action="store_true", help="one pass of the fallback's checks, then exit")
@@ -195,30 +262,36 @@ def main(argv=None) -> int:
     who = "hand (scripts/seal.py --now)" if args.now else "the launchd fallback (scripts/seal.py)"
     act_after, give_up = utc(args.act_after), utc(args.give_up)
     if not args.now:
-        log(f"fallback armed: seals after {args.act_after} once every run is done, unless already sealed; "
+        log(f"fallback armed: seals after {args.act_after} once every assigned run is done, unless already "
+            f"sealed; seals what there is from {(give_up - LAST_CALL).strftime('%Y-%m-%dT%H:%M:%SZ')}; "
             f"gives up at {args.give_up}")
     while True:
         now = datetime.now(timezone.utc)
+        last_call = args.last_call if args.now else now >= give_up - LAST_CALL
         try:
             if sealed():
                 log(f"{rel(FOLDER)} exists, committed and pushed: already sealed")
                 return 0
-            if not args.now and now >= give_up and not FOLDER.exists():
-                log("past the give-up time: a stamp now would not predate the results; not sealing")
+            if not args.now and now >= give_up:
+                log("past the give-up time: a stamp now would not predate the results; not sealing"
+                    if not FOLDER.exists() else
+                    f"past the give-up time with {rel(FOLDER)} not pushed: stopping; push it by hand")
                 return 1
             if args.now or now >= act_after:
-                waiting = {} if FOLDER.exists() else pending()
+                waiting = {} if FOLDER.exists() else pending(now)
                 if waiting:
                     log("still going: " + ", ".join(f"{k}={v}" for k, v in waiting.items()))
                     if args.now:
                         return 1
+                    if last_call:  # the guard should have ended them at KILL_AT; one pass of it now
+                        run([PYTHON, GUARD, "--once"])
                 elif args.dry_run:
                     log("every run is done; would claim the marker and seal" if not FOLDER.exists()
                         else f"{rel(FOLDER)} exists but is not pushed; would commit and push it")
                     return 0
                 elif claim(who):
                     try:
-                        rc = seal(who)
+                        rc = seal(who, last_call)
                     finally:
                         MARKER.unlink(missing_ok=True)
                     if rc == 0 or args.now:

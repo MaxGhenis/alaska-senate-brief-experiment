@@ -15,7 +15,7 @@ brief), with each run's family and arm from its meta.json, and writes:
 
 `--strict` leaves out every run whose answer `i86 check` repaired (runs/<label>/repairs.json), the
 registered sensitivity check on the repairs; `--accept-all-flags` is the one on the flags. An estimate
-that no complete family supports is undefined: the tables leave it empty and summary.md says so.
+that no complete family supports is undefined: the tables write `nan` for it and summary.md says so.
 
 See src/i86/arms.py for the definitions. These are model forecasts under stated scenarios, not
 observations.

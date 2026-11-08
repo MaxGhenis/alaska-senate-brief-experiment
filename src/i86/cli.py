@@ -163,9 +163,11 @@ def cmd_collect(args) -> int:
             pending = [d.name for d in now_dirs if d not in metas or runners.still_going(runners.read_meta(d))]
             for d in now_dirs:
                 metas.setdefault(d, runners.read_meta(d))
+        unfetched = []
         if not pending:
             for d in dirs:
-                runners.seal(d)
+                if not runners.seal(d) and runners.read_meta(d).get("state") == "succeeded":
+                    unfetched.append(d.name)
     for d, meta in metas.items():
         have = (d / "response.md").exists()
         print(f"{d.name:24s} {meta.get('state') or '-':10s} {meta.get('model_served') or '-':18s} response={'yes' if have else 'no'}")
@@ -173,6 +175,12 @@ def cmd_collect(args) -> int:
         print(f"{len(pending)} run(s) still going ({', '.join(pending)}); no answers copied yet. "
               "`i86 abandon <label>` marks a run that will never finish; `i86 recover <label>` takes a lost "
               "subfleet run's answer from its transcript")
+    if unfetched:
+        # A run that succeeded but whose answer could not be copied (Subfleet did not answer, or a
+        # recovered transcript changed): collect again; `collect_error` in its meta.json says why.
+        print(f"{len(unfetched)} succeeded run(s) without an answer yet ({', '.join(unfetched)}); "
+              "run `i86 collect` again")
+        return 1
     return 0
 
 
@@ -183,7 +191,13 @@ def cmd_abandon(args) -> int:
 
 
 def cmd_recover(args) -> int:
-    meta = runners.recover(args.label)
+    """Exit 0 once recovered; 2 when there is nothing the run's transcript may give (the run stays out);
+    any other failure, such as Subfleet not answering, exits 1, and a later attempt may succeed."""
+    try:
+        meta = runners.recover(args.label)
+    except runners.Unrecoverable as exc:
+        print(f"{args.label}: not recovered: {exc}", file=sys.stderr)
+        return 2
     print(f"{args.label}: recovered from {meta['attempt_id']} (subfleet: {meta['backend_state']})")
     return 0
 
@@ -198,12 +212,13 @@ def cmd_check(args) -> int:
         try:
             obj, repairs = read_answer(g, src.read_text())
             parse(g, obj)
-        except ResponseError as exc:
+        except Exception as exc:  # any fault fails this answer alone; the check goes on to the next run
+            problems = exc.problems if isinstance(exc, ResponseError) else [f"the answer cannot be read: {exc!r}"]
             bad += 1
-            (d / "problems.txt").write_text("\n".join(exc.problems) + "\n")
+            (d / "problems.txt").write_text("\n".join(problems) + "\n")
             (d / "response.json").unlink(missing_ok=True)
             (d / REPAIRS).unlink(missing_ok=True)
-            print(f"{d.name}: {len(exc.problems)} problem(s); see runs/{d.name}/problems.txt")
+            print(f"{d.name}: {len(problems)} problem(s); see runs/{d.name}/problems.txt")
             continue
         (d / "response.json").write_text(json.dumps(obj, indent=1) + "\n")
         (d / "problems.txt").unlink(missing_ok=True)
@@ -420,13 +435,14 @@ PREREG = ROOT / "prereg"
 
 
 def cmd_prereg(args) -> int:
-    # The registration (README.md), the map, the four briefs, the template, the context, the design, and
-    # the code that dispatches, audits, analyses and scores the runs.
+    # The registration (README.md), the map, the four briefs, the template, the context, the design, the
+    # code that dispatches, audits, analyses and scores the runs, and the launchd jobs that run
+    # scripts/deadline_guard.py and scripts/seal.py.
     files = [*ROOT.glob("README.md"), ROOT / "graph" / "graph.yaml",
              *sorted(p for p in PROMPT_DIR.glob("*") if p.is_file()), TEMPLATE_PATH,
              *sorted((ROOT / "context").iterdir()), *sorted(p for p in (ROOT / "design").glob("*") if p.is_file()),
              *ROOT.glob("pyproject.toml"), *sorted((ROOT / "src" / "i86").glob("*.py")),
-             *sorted((ROOT / "scripts").glob("*.py"))]
+             *sorted((ROOT / "scripts").glob("*.py")), *sorted((ROOT / "launchd").glob("*.plist"))]
     for d in run_dirs():
         files += [p for p in (d / "meta.json", d / "prompt.md", d / "prompt.sent.md", d / "response.md",
                               d / "response.json", d / REPAIRS, d / "problems.txt", d / "audit.json",

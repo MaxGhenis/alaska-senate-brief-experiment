@@ -720,17 +720,27 @@ def _covers_protected(root: Path, roots: list[Path]) -> bool:
     return any(_under(r, root) for r in roots) or _under(WORK, root)
 
 
+# What may follow the run's own work directory for `_mask_workdir` to replace it: a slash into it (but
+# not one to its parent through `..`), a quote, a backslash, white space, shell punctuation that ends a
+# word (; | & ( ) < > or a backquote), or the end of the text. Any other character (a letter, a digit,
+# `.`, `_`, `-`, or a glob or brace) may make the name another run's directory, which stays unmasked.
+_ENDS_WORKDIR = r"(?=/(?!\.\.(?:[/'\"\\\s;|&()<>`]|$))|['\"\\\s;|&()<>`]|$)"
+
+
 def _mask_workdir(text: str, workdir: Path) -> str:
-    """Replace the run's own work directory, but not a sibling that starts with the same name. The
-    directory may be spelled from / or, under the home directory, from ~, $HOME or ${HOME}."""
+    """Replace the run's own work directory, but not a sibling that starts with the same name, nor the
+    directory's parent reached through `..`. The directory may be spelled from / or, under the home
+    directory, from ~, $HOME or ${HOME}, quoted or not ("$HOME"/... included)."""
     spellings = [re.escape(str(workdir))]
     try:
         tail = re.escape("/" + Path(workdir).relative_to(HOME).as_posix())
     except ValueError:
         tail = None
     if tail is not None and Path(workdir).is_absolute():
-        spellings += ["~" + tail, r"\$HOME" + tail, r"\$\{HOME\}" + tail]
-    return re.sub("(?:" + "|".join(spellings) + r")(?=[/'\"\\\s]|$)", "<workdir>", text)
+        # "$HOME" in quotes may come JSON-escaped, \"$HOME\", in the tool call's text.
+        spellings += ["~" + tail, r"\$HOME" + tail, r"\$\{HOME\}" + tail, r'\\?"\$HOME\\?"' + tail,
+                      r'\\?"\$\{HOME\}\\?"' + tail]
+    return re.sub("(?:" + "|".join(spellings) + ")" + _ENDS_WORKDIR, "<workdir>", text)
 
 
 def _normpath(path) -> Path:

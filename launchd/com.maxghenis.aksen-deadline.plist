@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.maxghenis.aksen-deadline</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/maxghenis/alaska-senate-brief-experiment/.venv/bin/python</string>
+    <string>/Users/maxghenis/alaska-senate-brief-experiment/scripts/deadline_guard.py</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/maxghenis/alaska-senate-brief-experiment</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>/Users/maxghenis/bin:/Users/maxghenis/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HOME</key><string>/Users/maxghenis</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>StandardOutPath</key><string>/Users/maxghenis/alaska-senate-brief-experiment/.diag/launchd-deadline.log</string>
+  <key>StandardErrorPath</key><string>/Users/maxghenis/alaska-senate-brief-experiment/.diag/launchd-deadline.log</string>
+</dict>
+</plist>

@@ -217,35 +217,77 @@ def abandon(label: str) -> dict:
         return meta
 
 
+class Unrecoverable(RuntimeError):
+    """`recover` found nothing it may take, so the run stays out. Its other errors, such as Subfleet not
+    answering, may pass, and a later attempt may succeed."""
+
+
+def codex_final(text: str) -> tuple[str, str | None]:
+    """The final message of a `codex exec --json` transcript, and why its turn did not finish cleanly
+    (None when it did). A clean finish has one turn, started and completed, none failed, the completion
+    last among the turn events, and a completed agent message with text; the final message is the last
+    such. In each of the ten Sol runs of the DC and Texas studies, the answer `subfleet runs show --out`
+    printed is that message and one newline (tests/test_review_r16_prereg.py checks this)."""
+    started = completed = failed = 0
+    last_turn, final = None, ""
+    for raw in text.splitlines():
+        try:
+            event = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        kind = event.get("type")
+        if kind in ("turn.started", "turn.completed", "turn.failed"):
+            started += kind == "turn.started"
+            completed += kind == "turn.completed"
+            failed += kind == "turn.failed"
+            last_turn = kind
+        elif kind == "item.completed":
+            item = event.get("item")
+            if isinstance(item, dict) and item.get("type") == "agent_message" and isinstance(item.get("text"), str):
+                final = item["text"]
+    if started != 1 or completed != 1 or failed or last_turn != "turn.completed":
+        return final, f"turns: {started} started, {completed} completed, {failed} failed, last {last_turn}"
+    if not final.strip():
+        return final, "no completed agent message with text"
+    return final, None
+
+
 def recover(label: str) -> dict:
     """Mark a subfleet run that its supervisor reports lost, but whose agent finished, as succeeded.
 
     Subfleet reports a run lost, and accepts no answer from it, when processes the agent started are
     still alive after the agent exits ("writers remain after exit receipt"). The agent may still have
-    exited 0 with its final message in the attempt's stream-json transcript; for an accepted Claude
-    attempt, subfleet's deliverable is exactly that transcript's final `result` text. Recovery takes
-    the message only when the job's state is `lost`, the run is neither collected nor abandoned, and
-    one attempt exited 0 without a signal and has a transcript with exactly one `result` event, a
-    successful one with a non-empty message. It records the attempt, the supervisor's reason, and the
-    SHA-256 of the message and of the whole transcript; `seal` copies the transcript only if it is
-    unchanged, so the audit reads what recovery read. Recovery is final, like abandonment.
+    exited 0 with its final message in the attempt's transcript. For an accepted Claude attempt,
+    `subfleet runs show --out` prints the stream-json transcript's final `result` text and one newline;
+    for an accepted Codex attempt, the `codex exec --json` transcript's last completed agent message
+    (`codex_final`) and one newline. A recovered run's answer is the message alone.
+    Recovery takes the message only when the job's state is `lost`, the run is neither collected nor
+    abandoned, and one attempt exited 0 without a signal and has a transcript that finished cleanly: for
+    Claude, exactly one `result` event, a successful one with a non-empty message; for Codex, one turn,
+    completed, with a final message (`codex_final`). A Codex transcript does not name its model, so a
+    recovered Sol run takes the model Subfleet attests for the attempt. Recovery records the attempt, the
+    supervisor's reason, the transcript's format, and the SHA-256 of the message and of the whole
+    transcript; `seal` copies the transcript only if it is unchanged, so the audit reads what recovery
+    read. Recovery is final, like abandonment. It raises `Unrecoverable` when there is nothing to take.
     """
     with bookkeeping_lock():
         run_dir = RUNS / label
         meta = read_meta(run_dir)
         if not meta:
-            raise FileNotFoundError(f"no run {label}")
+            raise Unrecoverable(f"no run {label}")
         if meta.get("backend") != "subfleet" or not meta.get("job_id"):
-            raise RuntimeError(f"run {label} is not a subfleet run")
+            raise Unrecoverable(f"run {label} is not a subfleet run")
         if (run_dir / "response.md").exists() or meta.get("state") == "abandoned" or meta.get("recovered"):
-            raise RuntimeError(f"run {label} is already collected, abandoned or recovered")
+            raise Unrecoverable(f"run {label} is already collected, abandoned or recovered")
         proc = subprocess.run(["subfleet", "runs", "show", meta["job_id"], "--json"], capture_output=True, text=True)
         if proc.returncode != 0:
             raise RuntimeError(f"subfleet runs show failed: {proc.stderr[-1000:]}")
         info = json.loads(proc.stdout)
         state = (info.get("job") or {}).get("state")
         if state != "lost":
-            raise RuntimeError(f"run {label}: subfleet reports {state!r}; only a lost run can be recovered")
+            raise Unrecoverable(f"run {label}: subfleet reports {state!r}; only a lost run can be recovered")
         why = []
         for a in reversed(info.get("attempts") or []):
             folder = JOBS / a["attempt_id"]
@@ -256,31 +298,40 @@ def recover(label: str) -> dict:
             except (OSError, ValueError) as e:
                 why.append(f"{a['attempt_id']}: {e}")
                 continue
-            results = []
-            for raw in text.splitlines():
-                try:
-                    event = json.loads(raw)
-                except json.JSONDecodeError:
-                    continue
-                if isinstance(event, dict) and event.get("type") == "result":
-                    results.append(event)
-            final, served = parse_stream(text)
+            codex = str(a.get("lane_id") or "").startswith("codex")
+            if codex:
+                final, problem = codex_final(text)
+                served = a.get("model_served")
+            else:
+                results = []
+                for raw in text.splitlines():
+                    try:
+                        event = json.loads(raw)
+                    except json.JSONDecodeError:
+                        continue
+                    if isinstance(event, dict) and event.get("type") == "result":
+                        results.append(event)
+                final, served = parse_stream(text)
+                problem = None
+                if len(results) != 1 or results[0].get("subtype") != "success" or results[0].get("is_error") \
+                        or not isinstance(results[0].get("result"), str) or not results[0]["result"].strip():
+                    problem = "no single successful result in the transcript"
             if exit_.get("rc") != 0 or exit_.get("signal") is not None:
                 why.append(f"{a['attempt_id']}: exit {exit_}")
-            elif len(results) != 1 or results[0].get("subtype") != "success" or results[0].get("is_error") \
-                    or not isinstance(results[0].get("result"), str) or not results[0]["result"].strip():
-                why.append(f"{a['attempt_id']}: no single successful result in the transcript")
+            elif problem:
+                why.append(f"{a['attempt_id']}: {problem}")
             else:
                 meta.update(state="succeeded", backend_state=state, attempt_id=a["attempt_id"],
                             lane_id=a.get("lane_id"), model_served=served, transcript=str(folder / "stdout"),
                             finished_at=(info.get("job") or {}).get("finished_at"),
                             recovered={"at": now(), "attempt_state": a.get("state"),
                                        "supervisor_reason": a.get("quarantine_reason"),
+                                       "format": "codex" if codex else "claude",
                                        "result_sha256": hashlib.sha256(final.encode()).hexdigest(),
                                        "transcript_sha256": hashlib.sha256(data).hexdigest()})
                 write_meta(run_dir, meta)
                 return meta
-        raise RuntimeError(f"run {label}: no attempt can be recovered ({'; '.join(why) or 'no attempts'})")
+        raise Unrecoverable(f"run {label}: no attempt can be recovered ({'; '.join(why) or 'no attempts'})")
 
 
 def collected_any() -> bool:
@@ -443,7 +494,8 @@ def _seal(run_dir: Path) -> bool:
     data = transcript.read_bytes() if transcript.is_file() else None
     if meta.get("backend") == "subfleet" and meta.get("recovered"):
         rec = meta["recovered"]
-        answer = parse_stream(data.decode(errors="replace"))[0] if data is not None else ""
+        text = data.decode(errors="replace") if data is not None else ""
+        answer = codex_final(text)[0] if rec.get("format") == "codex" else parse_stream(text)[0]
         if (data is None or hashlib.sha256(answer.encode()).hexdigest() != rec["result_sha256"]
                 or hashlib.sha256(data).hexdigest() != rec.get("transcript_sha256")):
             meta["collect_error"] = "the recovered transcript changed after `i86 recover`"
@@ -452,6 +504,9 @@ def _seal(run_dir: Path) -> bool:
     elif meta.get("backend") == "subfleet":
         out = subprocess.run(["subfleet", "runs", "show", meta["job_id"], "--out"], capture_output=True, text=True)
         if out.returncode != 0 or not out.stdout.strip():
+            meta["collect_error"] = (f"subfleet runs show --out: rc {out.returncode}, "
+                                     f"{'no output' if not out.stdout.strip() else 'output'}: {out.stderr[-500:]}")
+            write_meta(run_dir, meta)
             return False
         answer = out.stdout
     if meta.get("backend") == "subfleet":

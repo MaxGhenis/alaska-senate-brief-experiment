@@ -8,8 +8,12 @@
 Each run cancelled or killed is then marked abandoned (`i86 abandon`), so `i86 collect` can proceed.
 A run with no Subfleet job that is not marked finished (a dispatch cut off before Subfleet answered) is
 marked abandoned at KILL_AT too.
-The guard checks every 60 seconds and exits once every run has finished or been abandoned, printing
-each run's state, so a session waiting on it wakes up.
+The guard checks every 60 seconds and exits once every run in design/assignment.json has finished or
+been abandoned, printing each run's state, so a session waiting on it wakes up. Until KILL_AT, a label
+not yet dispatched counts as still to come, so the guard may start before the first dispatch
+(launchd/com.maxghenis.aksen-deadline.plist). A run that `i86 collect` has recorded as finished is
+left alone, and so is a run whose state Subfleet does not give this minute: the guard asks again the
+next.
 
     .venv/bin/python scripts/deadline_guard.py [--start-by 2026-11-10T09:00:00Z] [--kill-at 2026-11-10T12:00:00Z]
 """
@@ -27,6 +31,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 RUNS = ROOT / "runs"
 I86 = ROOT / ".venv" / "bin" / "i86"
+ASSIGNMENT = ROOT / "design" / "assignment.json"
 # As src/i86/runners.py: the states after which a run produces nothing more.
 FINISHED = {"succeeded", "failed", "cancelled", "canceled", "lost", "killed", "expired", "abandoned"}
 NOT_STARTED = {"queued", "waiting"}
@@ -45,6 +50,11 @@ def job_state(job_id: str) -> str | None:
     if proc.returncode != 0:
         return None
     return (json.loads(proc.stdout).get("job") or {}).get("state")
+
+
+def assigned() -> list[str]:
+    """Every run label in design/assignment.json."""
+    return [row["label"] for row in json.loads(ASSIGNMENT.read_text())["runs"]]
 
 
 def runs() -> dict[str, dict]:
@@ -79,12 +89,15 @@ def main(argv=None) -> int:
     ap.add_argument("--once", action="store_true", help="one pass, then print every run's state and exit")
     args = ap.parse_args(argv)
     start_by, kill_at = utc(args.start_by), utc(args.kill_at)
-    print(f"{stamp()} guarding {', '.join(runs())}: cancel unstarted at {args.start_by}, kill at {args.kill_at}",
-          flush=True)
+    print(f"{stamp()} guarding {', '.join(assigned())}: cancel unstarted at {args.start_by}, kill at "
+          f"{args.kill_at}", flush=True)
     while True:
         now = datetime.now(timezone.utc)
-        states = {}
-        for label, meta in runs().items():
+        current = runs()
+        # Until KILL_AT, a label with no run yet may still be dispatched.
+        states = ({label: "not dispatched" for label in assigned()
+                   if label not in current and not (RUNS / label).exists()} if now < kill_at else {})
+        for label, meta in current.items():
             if meta.get("state") == "abandoned" or (RUNS / label / "response.md").exists():
                 states[label] = meta.get("state") or "collected"
                 continue
@@ -95,7 +108,13 @@ def main(argv=None) -> int:
                     abandon(label)
                     states[label] = "abandoned"
                 continue
+            if meta.get("state") in FINISHED:  # `i86 collect` recorded the job as finished
+                states[label] = meta["state"]
+                continue
             state = job_state(meta["job_id"])
+            if state is None:  # Subfleet did not answer: ask again next minute, and stop nothing on it
+                states[label] = "unknown"
+                continue
             states[label] = state
             if state in FINISHED:
                 continue

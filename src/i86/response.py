@@ -182,24 +182,29 @@ def _check_value(graph: Graph, node: Node, v: dict, where: str, problems: list[s
 
 _FENCE = re.compile(r"```(?:json)?\s*\n(.*?)\n```", re.S)
 
-# The registered repairs. `read_answer` makes them in every answer alike, whatever its run's arm, before
-# `parse` checks it, and returns a record of each, which `i86 check` keeps in runs/<label>/repairs.json.
-# Each mends a slip that carries no forecast, and nothing else:
-# - a comma with only white space between it and a closing brace or bracket, outside strings, goes,
-#   when the JSON parses only without it;
+# The registered repairs. `read_answer` reads an answer as written first, and returns it unrepaired when
+# `parse` accepts it. Only an answer that fails gets the repairs, the same in every arm, before `parse`
+# checks it again; `read_answer` returns a record of each repair, which `i86 check` keeps in
+# runs/<label>/repairs.json. Each mends a slip that carries no forecast, and nothing else:
+# - a comma that follows an element and has only white space between it and a closing brace or
+#   bracket, outside strings, goes, when the JSON parses only without it;
 # - a key that the template lacks, inside a question's `forecasts` or among `nodes`, goes when its value
-#   is not an object (null, text, a number, true or false, or a list): only an object can hold a forecast.
+#   holds no object (null, text, a number, true or false, or a list with no object in it at any depth):
+#   only an object can hold a forecast.
 # A run that needs any other change still fails. `scripts/arms.py --strict` reruns the analysis without
 # the repaired runs.
 
 
 def _strip_trailing_commas(text: str) -> tuple[str, list[str]]:
-    """`text` without each comma that, outside strings, has only white space between it and a closing
-    brace or bracket, and the text just before each comma removed."""
+    """`text` without each comma that, outside strings, follows an element (a string, a number, true,
+    false, null, an object or a list) and has only white space between it and a closing brace or
+    bracket, and the text just before each comma removed. A comma after `{`, `[`, `:` or another comma
+    stays: it follows no element, and removing it would hide a hole rather than mend a slip."""
     out: list[str] = []
     removed: list[str] = []
     in_string = escaped = False
     comma: tuple[int, int] | None = None  # (index in out, index in text) of a comma not yet followed by anything
+    prev = ""  # the last character outside white space, a string's closing quote included
     for i, ch in enumerate(text):
         if in_string:
             if escaped:
@@ -207,17 +212,18 @@ def _strip_trailing_commas(text: str) -> tuple[str, list[str]]:
             elif ch == "\\":
                 escaped = True
             elif ch == '"':
-                in_string = False
+                in_string, prev = False, '"'
         elif ch == '"':
             in_string, comma = True, None
         elif ch in "}]" and comma is not None:
             out[comma[0]] = ""
             removed.append(text[max(0, comma[1] - 40) : comma[1] + 1])
-            comma = None
+            comma, prev = None, ch
         elif ch == ",":
-            comma = (len(out), i)
+            comma = (len(out), i) if prev == '"' or prev in ("}", "]") or prev.isalnum() else None
+            prev = ch
         elif not ch.isspace():
-            comma = None
+            comma, prev = None, ch
         out.append(ch)
     return "".join(out), removed
 
@@ -238,14 +244,17 @@ def _loads(text: str) -> tuple[object, list[dict]]:
         return obj, [{"repair": "trailing_comma", "count": len(removed), "before": removed}]
 
 
-def extract_json(text: str, repairs: list | None = None) -> dict:
+def extract_json(text: str, repairs: list | None = None, repair: bool = True) -> dict:
     """The last fenced JSON block in an agent's final message that holds a 'nodes' object, else the
-    outermost object. A block that parses only without its trailing commas is read without them, and
-    the repair is appended to `repairs`."""
+    outermost object. With `repair`, a block that parses only without its trailing commas is read
+    without them, and the repair is appended to `repairs`; without it, every block is read as written."""
+    def load(t: str) -> tuple[object, list[dict]]:
+        return _loads(t) if repair else (json.loads(t), [])
+
     blocks = _FENCE.findall(text)
     for block in reversed(blocks):
         try:
-            obj, fixes = _loads(block)
+            obj, fixes = load(block)
         except json.JSONDecodeError:
             continue
         if isinstance(obj, dict) and "nodes" in obj:
@@ -256,7 +265,7 @@ def extract_json(text: str, repairs: list | None = None) -> dict:
     if start == -1 or end <= start:
         raise ResponseError(["no JSON object found in the response"])
     try:
-        obj, fixes = _loads(text[start : end + 1])
+        obj, fixes = load(text[start : end + 1])
     except json.JSONDecodeError as exc:
         raise ResponseError([f"the response's JSON does not parse: {exc}"]) from exc
     if repairs is not None:
@@ -269,16 +278,23 @@ def expected_keys(graph: Graph) -> dict[str, set[str]]:
     return {n.id: {e.key for e in graph.entries(n)} for n in graph.forecast_nodes()}
 
 
+def _holds_object(value) -> bool:
+    """Whether a parsed JSON value is an object, or a list with an object in it at any depth."""
+    if isinstance(value, dict):
+        return True
+    return isinstance(value, list) and any(_holds_object(v) for v in value)
+
+
 def drop_strays(expected: dict[str, set[str]], obj) -> list[dict]:
-    """Drop from a parsed answer, in place, each key the template lacks whose value is not an object,
-    among `nodes` or inside a question's `forecasts` (`expected`, from `expected_keys`), and return a
-    record of each key dropped."""
+    """Drop from a parsed answer, in place, each key the template lacks whose value holds no object
+    (`_holds_object`), among `nodes` or inside a question's `forecasts` (`expected`, from
+    `expected_keys`), and return a record of each key dropped."""
     fixes: list[dict] = []
     if not isinstance(obj, dict) or not isinstance(obj.get("nodes"), dict):
         return fixes
     nodes = obj["nodes"]
     for key in list(nodes):
-        if key not in expected and not isinstance(nodes[key], dict):
+        if key not in expected and not _holds_object(nodes[key]):
             fixes.append({"repair": "dropped_key", "where": "nodes", "key": key, "value": nodes.pop(key)})
     for node_id, keys in expected.items():
         item = nodes.get(node_id)
@@ -286,15 +302,22 @@ def drop_strays(expected: dict[str, set[str]], obj) -> list[dict]:
         if not isinstance(forecasts, dict):
             continue
         for key in list(forecasts):
-            if key not in keys and not isinstance(forecasts[key], dict):
+            if key not in keys and not _holds_object(forecasts[key]):
                 fixes.append({"repair": "dropped_key", "where": f"{node_id}.forecasts", "key": key,
                               "value": forecasts.pop(key)})
     return fixes
 
 
 def read_answer(graph: Graph, text: str) -> tuple[dict, list[dict]]:
-    """An agent's final message's JSON after the registered repairs, and a record of each repair made.
-    `parse` still checks the result."""
+    """An agent's final message's JSON, and a record of each repair made. An answer that `parse` accepts
+    as written comes back as written, with no repairs, so a repair can never change what such an answer
+    says; only an answer that fails gets the registered repairs. `parse` still checks the result."""
+    try:
+        obj = extract_json(text, repair=False)
+        parse(graph, obj)
+        return obj, []
+    except Exception:  # any fault as written: the repaired reading below gets the same check
+        pass
     repairs: list[dict] = []
     obj = extract_json(text, repairs)
     repairs += drop_strays(expected_keys(graph), obj)

@@ -19,6 +19,7 @@ def area(tmp_path, monkeypatch):
         (runs / label).mkdir(parents=True)
         (runs / label / "meta.json").write_text(json.dumps({"label": label, "backend": "subfleet", **meta}))
     monkeypatch.setattr(guard, "RUNS", runs)
+    monkeypatch.setattr(guard, "assigned", lambda: ["opus-01", "opus-02", "sol-01", "sol-02"])  # all dispatched
     states = {"MOCK-1": "running", "MOCK-2": "killed"}
     monkeypatch.setattr(guard, "job_state", lambda job_id: states[job_id])
     stopped, abandoned = [], []

@@ -139,14 +139,16 @@ freedom for each run less one for each arm. Each estimate's standard error combi
 pooled variances, and its 95% t interval takes Welch-Satterthwaite degrees of freedom. If one model
 has no accepted run in some arm, `scripts/arms.py` leaves that model out of every estimate and uses
 the other model's runs alone. If neither model has an accepted run in every arm, it reports every
-estimate as undefined. For its p-value, `scripts/arms.py` re-assigns the arms among each model's
-runs 100,000 times, keeping each arm's count. The p-value gives the share of those assignments,
-counting the observed one, whose effect lies at least as far from zero as the observed effect. The
-randomization makes that test exact, whatever the answers' distribution, under the sharp null that
-the blocks change neither any run's answers nor whether the run stays in the analysis. Holm's
-step-down correction adjusts the three primaries' p-values, and counts an undefined one among the
-three without adjusting it. I reject a primary effect's null when its adjusted p-value falls below
-0.05.
+estimate as undefined. If a model has a single accepted run in each arm, its runs leave no
+within-arm variance to pool, so `scripts/arms.py` reports no standard error or interval for any
+estimate that uses them, and still reports each effect's p-value. For a primary effect's p-value,
+`scripts/arms.py` re-assigns the arms among each model's runs 100,000 times, keeping each arm's
+count. The p-value gives the share of those assignments, counting the observed one, whose effect
+lies at least as far from zero as the observed effect. The randomization makes that test exact,
+whatever the answers' distribution, under the sharp null that the blocks change neither any run's
+answers nor whether the run stays in the analysis. Holm's step-down correction adjusts the three
+primaries' p-values, and counts an undefined one among the three without adjusting it. I reject a
+primary effect's null when its adjusted p-value falls below 0.05.
 
 **Other estimates.** `scripts/arms.py` also reports each primary effect within each model, with its
 own interval. Beyond the primaries, it estimates the effect of each block and of their interaction on
@@ -163,17 +165,23 @@ the `peltola_senator` check among them.
   `gpt-6.1-sol` for a Sol run;
 - `i86 audit` fails it, or, for a Sol run, `scripts/audit_codex_sessions.py` fails any thread behind
   it;
-- it fails or never starts, or Subfleet records it finishing after 12:00Z on November 10;
+- it fails or never starts;
+- Subfleet records no finish time for it in ISO 8601 with a time zone, or records it finishing after
+  12:00Z on November 10;
 - I dispatched it with `i86 dispatch --late`, after `i86 collect` had copied answers in.
 
-Each label gets one dispatch, and no run replaces another. Before `i86 check` parses an answer, it
-makes two repairs, the same in every arm, and records each in `runs/<label>/repairs.json`. It drops
-each comma that comes just before a closing brace or bracket, outside strings, when the JSON parses
-only without those commas. It also drops each key the template lacks, among the questions or in a
-question's forecasts, when the key holds null, text, a number, true, false or a list, none of which
-can hold a forecast. Seven Opus answers failed the check in the DC and Texas studies, and these
-repairs would have let six of them pass. Any other fault still fails the run, and `scripts/arms.py
---strict` reruns the analysis without the runs whose answers `i86 check` repaired.
+Each label gets one dispatch, and no run replaces another. `i86 check` takes the last bare or
+`json`-tagged fenced block in a run's answer that parses as JSON and holds a `nodes` object, or, if
+no block does, the text from the answer's first `{` to its last `}`. It reads the answer as written
+first. If that reading fails the check, it reads the answer again with two repairs, the same in
+every arm, and records each repair it makes in `runs/<label>/repairs.json`. It drops each comma that
+follows a value and comes just before a closing brace or bracket, outside strings, when the JSON
+parses only without those commas. It also drops each key the template lacks, among the questions or
+in a question's forecasts, when the key holds null, text, a number, true, false, or a list with no
+object anywhere inside it, none of which can hold a forecast. Seven Opus answers failed the check in
+the DC and Texas studies, and six of them would have passed with these repairs. Any other fault
+still fails the run, and `scripts/arms.py --strict` reruns the analysis without the runs whose
+answers `i86 check` repaired.
 
 A run with a suspect tool call, or whose `prior_context` mentions these questions, also stays out
 unless I accept the flag. Before the analysis runs, I hide each flag's run label and arm and cut any
@@ -206,17 +214,20 @@ counts, polls and prediction markets. Once the last run has finished, `scripts/s
 `i86 recover` on every run that Subfleet reports lost, whatever its arm. Where such a run's agent
 finished cleanly, `i86 recover` takes its answer from the run's own transcript. `scripts/seal.py`
 then collects, checks and audits every answer, audits every thread behind each Sol run, and stamps
-the record. A launchd copy of it does the same from 12:00Z on November 8 if no one has, tries again
-every minute until it has committed and pushed the record, and gives up at 16:00Z on November 10,
-7 a.m. in Juneau.
+the record. From 12:00Z on November 8, if no one has sealed the record, a launchd job does the same
+once every label in the assignment has gone out and every run has ended. It tries again every minute
+until it has committed and pushed the record, and from 12:00Z on November 10 it stops waiting for
+labels that never went out. From 15:30Z, it seals what it has, and its commit message names any
+answer or stamp it could not get. It gives up at 16:00Z, 7 a.m. in Juneau.
 
 ## Registration
 
 Before the first dispatch, `i86 prereg` hashes this README, the map, the four briefs, the response
-template, the context, the assignment, the package configuration and the code, and OpenTimestamps
-stamps the hashes; `prereg/registration/` keeps both. The stamp dates the hypotheses, measures, tests
-and exclusion rules above. Once the last run finishes, `prereg/collected/` will keep the same record
-for every run's answer, audit and transcript, with a stamp from before the November 10 count.
+template, the context, the assignment, the package configuration, the code and the launchd jobs, and
+OpenTimestamps stamps the hashes; `prereg/registration/` keeps both. The stamp dates the hypotheses,
+measures, tests and exclusion rules above. Once the last run finishes, `prereg/collected/` will keep
+the same record for every run's answer, audit and transcript, with a stamp from before the November
+10 count.
 
 ## Independence
 
@@ -284,6 +295,8 @@ macOS with ripgrep and poppler from Homebrew.
 - `scripts/`: `arms.py` and `score.py` write `outputs/arms/` and `outputs/scores/`;
   `deadline_guard.py` and `seal.py` enforce the deadline and seal the answers;
   `audit_codex_sessions.py` audits every thread of a Sol run.
+- `launchd/`: the launchd jobs that run `deadline_guard.py` and `seal.py` on the Mac that
+  dispatches the runs.
 - `outcomes/outcomes.yaml`: each outcome, with its date and source, as it resolves.
 - `prereg/`: hashes and timestamps.
 - `tests/`: tests with MOCK answers. Most run on the DC Initiative 86 map, kept as
