@@ -149,6 +149,7 @@ def cmd_collect(args) -> int:
 
     The whole check-and-copy holds the runs' lock, so no dispatch can start a run in between; before
     copying, the runs are listed again and must match what was checked."""
+    runners._stalls.clear()  # a command's own subfleet calls decide whether Subfleet is stalled
     with runners.bookkeeping_lock():
         dirs = run_dirs()
         metas = {d: (runners.refresh_subfleet(d) if runners.read_meta(d).get("backend") == "subfleet"
@@ -193,6 +194,7 @@ def cmd_abandon(args) -> int:
 def cmd_recover(args) -> int:
     """Exit 0 once recovered; 2 when there is nothing the run's transcript may give (the run stays out);
     any other failure, such as Subfleet not answering, exits 1, and a later attempt may succeed."""
+    runners._stalls.clear()
     try:
         meta = runners.recover(args.label)
     except runners.Unrecoverable as exc:
@@ -215,15 +217,15 @@ def cmd_check(args) -> int:
         except Exception as exc:  # any fault fails this answer alone; the check goes on to the next run
             problems = exc.problems if isinstance(exc, ResponseError) else [f"the answer cannot be read: {exc!r}"]
             bad += 1
-            (d / "problems.txt").write_text("\n".join(problems) + "\n")
+            runners.write_atomic(d / "problems.txt", "\n".join(problems) + "\n")
             (d / "response.json").unlink(missing_ok=True)
             (d / REPAIRS).unlink(missing_ok=True)
             print(f"{d.name}: {len(problems)} problem(s); see runs/{d.name}/problems.txt")
             continue
-        (d / "response.json").write_text(json.dumps(obj, indent=1) + "\n")
+        runners.write_atomic(d / "response.json", json.dumps(obj, indent=1) + "\n")
         (d / "problems.txt").unlink(missing_ok=True)
         if repairs:
-            (d / REPAIRS).write_text(json.dumps(repairs, indent=1) + "\n")
+            runners.write_atomic(d / REPAIRS, json.dumps(repairs, indent=1) + "\n")
             print(f"{d.name}: ok after {len(repairs)} registered repair(s); see runs/{d.name}/{REPAIRS}")
         else:
             (d / REPAIRS).unlink(missing_ok=True)
@@ -253,7 +255,7 @@ def cmd_audit(args) -> int:
                       "suspect": [], "error": f"no committed transcript at runs/{d.name}/transcript.jsonl"}
         else:
             result = audit.audit_transcript(path, meta.get("workdir", ""))
-        (d / "audit.json").write_text(json.dumps(result, indent=1) + "\n")
+        runners.write_atomic(d / "audit.json", json.dumps(result, indent=1) + "\n")
         flag = "ok" if result["passed"] else ("VIOLATION" if result["violations"] else "NO EVENTS")
         worst = max(worst, 0 if result["passed"] else 1)
         print(f"{d.name}: {flag}; {result['events']} events, {result['web_calls']} web calls, "
@@ -481,7 +483,7 @@ def cmd_prereg(args) -> int:
     lines = [f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.relative_to(ROOT)}" for p in files]
     PREREG.mkdir(exist_ok=True)
     sums = PREREG / "SHA256SUMS"
-    sums.write_text("\n".join(lines) + "\n")
+    runners.write_atomic(sums, "\n".join(lines) + "\n")
     # The previous proof stamps the previous manifest, which its dated folder keeps. `ots stamp`
     # will not overwrite it, and left in place it would sit beside a manifest it does not prove.
     (PREREG / "SHA256SUMS.ots").unlink(missing_ok=True)

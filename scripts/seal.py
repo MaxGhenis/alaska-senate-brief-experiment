@@ -11,10 +11,10 @@ first new results since election week, so this runs two ways:
   GIVE_UP (16:00Z on November 10, 7 a.m. in Juneau), sealed or not: after that, a stamp might not
   predate the count.
 
-Whoever seals first takes MARKER, so the two never run together; a marker older than 15 minutes
-without a sealed folder counts as abandoned. Sealing first runs `i86 recover` on every run whose
-Subfleet job was lost, whatever its arm, then `i86 collect`, `check`, `audit`,
-`scripts/audit_codex_sessions.py` and `prereg`. It keeps the manifest and its proof in
+Whoever seals first takes MARKER, so the two never run together; the pass holding it touches it every
+minute, so a marker untouched for 15 minutes without a sealed folder counts as abandoned. Sealing
+first runs `i86 recover` on every run whose Subfleet job was lost, whatever its arm, then `i86
+collect`, `check`, `audit`, `scripts/audit_codex_sessions.py` and `prereg`. It keeps the manifest and its proof in
 prereg/collected/, adds that folder to prereg/README.md, and commits and pushes. The record counts as
 sealed once that folder is committed and pushed; until then, the fallback tries again every minute,
 and a pass that fails, at any step, ends nothing but that pass. A pass also stops, to try again, when
@@ -25,8 +25,9 @@ hand, `--last-call`), it stops only when it has no fresh manifest: it seals what
 missing answer, or with hashes alone when the stamp fails, and GAPS.txt and the commit message name
 each such gap and the runs it leaves out. A run still going at LAST_CALL gets one pass of
 scripts/deadline_guard.py, which kills and abandons it; a run whose state Subfleet still does not give
-is abandoned (`i86 abandon --why`) and named in GAPS.txt. Every command a pass runs has a time limit,
-and no pass starts the stamp at or after GIVE_UP, or gives it longer than the time left.
+is abandoned (`i86 abandon --why`) and named in GAPS.txt, which also names every assigned run left
+without an answer. A run recorded as finished is never abandoned for want of a state. Every command a
+pass runs has a time limit cut to the time left before GIVE_UP, and none starts at or after it.
 
     .venv/bin/python scripts/seal.py --now [--last-call] [--dry-run]
     .venv/bin/python scripts/seal.py [--act-after 2026-11-08T12:00:00Z] [--give-up 2026-11-10T16:00:00Z] [--once]
@@ -41,6 +42,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -61,9 +63,11 @@ STALE_S = 900
 FINISHED = {"succeeded", "failed", "cancelled", "canceled", "lost", "killed", "expired", "abandoned"}
 # Time limits, in seconds, for the commands a pass runs. Every write they make is whole or not at all
 # (src/i86/runners.py write_atomic), so a command cut off leaves nothing a later pass cannot redo.
-LIMIT = {"subfleet": 120, "abandon": 60, "recover": 300, "collect": 600, "check": 600, "audit": 900, "guard": 600,
+LIMIT = {"subfleet": 60, "abandon": 60, "recover": 300, "collect": 600, "check": 600, "audit": 900, "guard": 600,
          "git": 120, "push": 300, "prereg": 900}
 UNKNOWN_AT_LAST_CALL = "Subfleet gave no state for it at the last call"
+RETRY_S = 5  # before asking Subfleet a second time for a run's state (`lost`)
+BEAT_S = 60  # between touches of MARKER while a pass holds it (`heartbeat`)
 
 
 def utc(text: str) -> datetime:
@@ -85,11 +89,17 @@ def log(text: str) -> None:
     print(f"{stamp()} {text}", flush=True)
 
 
-def job_state(job_id: str) -> str | None:
-    """The job's state as Subfleet gives it, or None when Subfleet fails, gives no JSON, or takes too long."""
+def job_state(job_id: str, give_up: datetime | None = None) -> str | None:
+    """The job's state as Subfleet gives it, or None when Subfleet fails, gives no JSON, or takes too long:
+    longer than LIMIT["subfleet"], or past `give_up`, when it does not run at all."""
+    timeout = float(LIMIT["subfleet"])
+    if give_up is not None:
+        timeout = min(timeout, (give_up - datetime.now(timezone.utc)).total_seconds())
+        if timeout <= 0:
+            return None
     try:
         proc = subprocess.run(["subfleet", "runs", "show", job_id, "--json"], capture_output=True, text=True,
-                              timeout=LIMIT["subfleet"])
+                              timeout=timeout)
         if proc.returncode != 0:
             return None
         return (json.loads(proc.stdout).get("job") or {}).get("state")
@@ -108,10 +118,11 @@ def assigned() -> list[str]:
     return [row["label"] for row in json.loads(ASSIGNMENT.read_text())["runs"]]
 
 
-def pending(now: datetime | None = None) -> dict[str, str]:
+def pending(now: datetime | None = None, give_up: datetime | None = None) -> dict[str, str]:
     """Runs that may still produce an answer, with their states (as `i86 collect` decides), and, before
     KILL_AT, each assigned label not yet dispatched, or whose folder has no meta.json yet (a dispatch
-    starting). A run whose state Subfleet does not give counts, as "unknown"."""
+    starting). A run whose state Subfleet does not give, by `give_up` at the latest, counts, as
+    "unknown"."""
     now = now or datetime.now(timezone.utc)
     out = {}
     have = {d.name for d in RUNS.iterdir()} if RUNS.exists() else set()
@@ -125,25 +136,32 @@ def pending(now: datetime | None = None) -> dict[str, str]:
             continue
         if meta.get("state") in FINISHED:
             continue
-        state = job_state(meta["job_id"]) if meta.get("backend") == "subfleet" and meta.get("job_id") else None
+        state = (job_state(meta["job_id"], give_up) if meta.get("backend") == "subfleet" and meta.get("job_id")
+                 else None)
         if state not in FINISHED:
             out[d.name] = state or "unknown"
     return out
 
 
-def lost() -> tuple[list[str], list[str]]:
+def lost(give_up: datetime | None = None) -> tuple[list[str], list[str]]:
     """Runs whose Subfleet job was lost, neither collected, abandoned nor recovered: `i86 recover` may
     take their answers from their own transcripts. Sealing tries every one, whatever its arm. Also the
-    runs Subfleet did not say about, which may be lost too."""
+    runs Subfleet did not say about, after two tries, which may be lost too. A run recorded as finished,
+    other than lost, is neither: Subfleet ends a job once, so it is not asked again, and a failed reply
+    cannot abandon a run whose answer `i86 collect` may still copy."""
     out, unknown = [], []
     for d in sorted(RUNS.iterdir()) if RUNS.exists() else []:
         meta = read_meta(d)
         if meta is None or (d / "response.md").exists():
             continue
-        if (meta.get("backend") != "subfleet" or not meta.get("job_id") or meta.get("state") == "abandoned"
-                or meta.get("recovered")):
+        if (meta.get("backend") != "subfleet" or not meta.get("job_id") or meta.get("recovered")
+                or meta.get("state") in FINISHED - {"lost"}):
             continue
-        state = job_state(meta["job_id"])
+        state = job_state(meta["job_id"], give_up)
+        if state is None:
+            if RETRY_S:
+                time.sleep(RETRY_S)
+            state = job_state(meta["job_id"], give_up)
         if state == "lost":
             out.append(d.name)
         elif state is None:
@@ -159,6 +177,31 @@ def unfetched() -> list[str]:
         if meta is not None and meta.get("state") == "succeeded" and not (d / "response.md").exists():
             out.append(d.name)
     return out
+
+
+def unanswered() -> list[str]:
+    """Each assigned run with no answer in runs/, and why, as its meta.json records it."""
+    out = []
+    for label in assigned():
+        d = RUNS / label
+        if (d / "response.md").exists():
+            continue
+        meta = read_meta(d) if d.is_dir() else None
+        if meta is None:
+            out.append(f"{label} (not dispatched)" if not d.is_dir() else f"{label} (no meta.json)")
+            continue
+        why = meta.get("abandon_reason") or meta.get("collect_error")
+        out.append(f"{label} ({meta.get('state') or 'no state'}{': ' + str(why)[:200] if why else ''})")
+    return out
+
+
+def heartbeat(stop: threading.Event) -> None:
+    """Touch MARKER every minute until `stop` is set, so a pass that outlasts STALE_S keeps it."""
+    while not stop.wait(BEAT_S):
+        try:
+            os.utime(MARKER)
+        except OSError:
+            pass
 
 
 def git(*args: str) -> subprocess.CompletedProcess:
@@ -194,12 +237,15 @@ def claim(who: str) -> bool:
 
 def run(cmd: list, timeout: float = 600) -> subprocess.CompletedProcess:
     """Run a command in its own process group. Past `timeout` seconds the whole group is killed, and
-    the result has return code 124."""
+    the result has return code 124; with no time left (`timeout` 0 or less), it does not start."""
     argv = [str(c) for c in cmd]
+    if timeout <= 0:
+        log(f"$ {' '.join(argv)} -> not run: no time left before the give-up time")
+        return subprocess.CompletedProcess(argv, 124, "", "not run: no time left")
     child = subprocess.Popen(argv, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                              start_new_session=True)
     try:
-        out, err = child.communicate(timeout=max(1.0, timeout))
+        out, err = child.communicate(timeout=timeout)
         rc = child.returncode
     except subprocess.TimeoutExpired:
         try:
@@ -245,15 +291,16 @@ def seal(who: str, last_call: bool = False, give_up: datetime | None = None) -> 
         return False
 
     if not FOLDER.exists():
-        lost_runs, unknown = lost()
+        lost_runs, unknown = lost(give_up)
         if unknown:
             if not last_call:
                 log(f"Subfleet did not say whether {', '.join(unknown)} were lost; not sealing")
                 return 1
-            for label in unknown:
-                run([I86, "abandon", label, "--why", UNKNOWN_AT_LAST_CALL], timeout=left(LIMIT["abandon"]))
-            gaps.append(f"Subfleet gave no state at the last call for {', '.join(unknown)}: abandoned, "
-                        "with no answer collected")
+            done = [label for label in unknown if run([I86, "abandon", label, "--why", UNKNOWN_AT_LAST_CALL],
+                                                       timeout=left(LIMIT["abandon"])).returncode == 0]
+            if done:
+                gaps.append(f"Subfleet gave no state at the last call for {', '.join(done)}: abandoned, "
+                            "with no answer collected")
         for label in lost_runs:
             rec = run([I86, "recover", label], timeout=left(LIMIT["recover"]))  # changes nothing unless it recovers
             if rec.returncode not in (0, 2):  # 2: nothing to recover; anything else may pass
@@ -300,6 +347,8 @@ def seal(who: str, last_call: bool = False, give_up: datetime | None = None) -> 
                 log("the stamp failed and the give-up time has passed; not sealing")
                 return 1
             gaps.append("the OpenTimestamps stamp failed: hashes only")
+        if last_call and (missing := unanswered()):
+            gaps.append(f"no answer in this record for {'; '.join(missing)}")
         staging = FOLDER.with_name(FOLDER.name + ".partial")
         shutil.rmtree(staging, ignore_errors=True)
         staging.mkdir(parents=True)
@@ -365,13 +414,14 @@ def main(argv=None) -> int:
                     f"past the give-up time with {rel(FOLDER)} not pushed: stopping; push it by hand")
                 return 1
             if args.now or now >= act_after:
-                waiting = {} if FOLDER.exists() else pending(now)
+                waiting = {} if FOLDER.exists() else pending(now, give_up)
                 if waiting and last_call:
                     # The guard should have ended them at KILL_AT: one pass of it now. A run whose state
                     # Subfleet still does not give holds nothing up: seal() abandons it and names it.
                     log("still going at the last call: " + ", ".join(f"{k}={v}" for k, v in waiting.items()))
-                    run([PYTHON, GUARD, "--once"], timeout=min(LIMIT["guard"], (give_up - now).total_seconds()))
-                    waiting = {k: v for k, v in pending().items() if v != "unknown"}
+                    run([PYTHON, GUARD, "--once"],
+                        timeout=min(LIMIT["guard"], (give_up - datetime.now(timezone.utc)).total_seconds()))
+                    waiting = {k: v for k, v in pending(give_up=give_up).items() if v != "unknown"}
                 if waiting:
                     log("still going: " + ", ".join(f"{k}={v}" for k, v in waiting.items()))
                     if args.now:
@@ -381,9 +431,12 @@ def main(argv=None) -> int:
                         else f"{rel(FOLDER)} exists but is not pushed; would commit and push it")
                     return 0
                 elif claim(who):
+                    beat = threading.Event()
+                    threading.Thread(target=heartbeat, args=(beat,), name="marker-heartbeat", daemon=True).start()
                     try:
                         rc = seal(who, last_call, give_up)
                     finally:
+                        beat.set()
                         MARKER.unlink(missing_ok=True)
                     if rc == 0 or args.now:
                         return rc

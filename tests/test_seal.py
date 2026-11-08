@@ -28,7 +28,8 @@ def area(tmp_path, monkeypatch):
     monkeypatch.setattr(seal, "MARKER", tmp_path / "cache" / "sealing")
     monkeypatch.setattr(seal, "assigned", lambda: ["opus-1", "opus-2", "opus-3"])  # every label dispatched
     states = {"MOCK-3": "waiting"}
-    monkeypatch.setattr(seal, "job_state", lambda job_id: states[job_id])
+    monkeypatch.setattr(seal, "job_state", lambda job_id, give_up=None: states[job_id])
+    monkeypatch.setattr(seal, "RETRY_S", 0)
     return states
 
 

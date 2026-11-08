@@ -71,6 +71,12 @@ ROLLOUT_THREAD = re.compile(r"^rollout-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-"
 ROLLOUT_LIMIT = 32
 # Run states. Anything not known to be finished counts as still going.
 FINISHED = {"succeeded", "failed", "cancelled", "canceled", "lost", "killed", "expired", "abandoned"}
+# Seconds one `subfleet runs show` may take; its client gives up on the daemon after 15. After
+# SUBFLEET_STALLS calls in one process have timed out, the rest fail at once, so a hung Subfleet costs a
+# command a minute or two, not a timeout for every run.
+SUBFLEET_TIMEOUT = 60
+SUBFLEET_STALLS = 3
+_stalls: list[str] = []  # the calls that timed out in this process (`subfleet`)
 
 
 # The file lock serializes processes; the mutex serializes threads within one, and is what makes
@@ -201,6 +207,20 @@ def write_atomic(path: Path, data: bytes | str) -> None:
 
 def write_meta(run_dir: Path, meta: dict) -> None:
     write_atomic(run_dir / "meta.json", json.dumps(meta, indent=2, sort_keys=True) + "\n")
+
+
+def subfleet(*args: str) -> subprocess.CompletedProcess:
+    """`subfleet ARGS`, with return code 124 when it takes longer than SUBFLEET_TIMEOUT seconds, and at
+    once, without running, after SUBFLEET_STALLS calls in this process have timed out."""
+    argv = ["subfleet", *args]
+    if len(_stalls) >= SUBFLEET_STALLS:
+        return subprocess.CompletedProcess(argv, 124, "", f"not run: {len(_stalls)} subfleet calls timed out "
+                                                          f"before it ({_stalls[0]})")
+    try:
+        return subprocess.run(argv, capture_output=True, text=True, timeout=SUBFLEET_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        _stalls.append(f"`subfleet {' '.join(args)}` timed out after {SUBFLEET_TIMEOUT} s")
+        return subprocess.CompletedProcess(argv, 124, "", _stalls[-1])
 
 
 def record(run_dir: Path, state: str | None = None, **fields) -> dict:
@@ -385,9 +405,9 @@ def recover(label: str) -> dict:
             raise Unrecoverable(f"run {label} is not a subfleet run")
         if (run_dir / "response.md").exists() or meta.get("state") == "abandoned" or meta.get("recovered"):
             raise Unrecoverable(f"run {label} is already collected, abandoned or recovered")
-        proc = subprocess.run(["subfleet", "runs", "show", meta["job_id"], "--json"], capture_output=True, text=True)
+        proc = subfleet("runs", "show", meta["job_id"], "--json")
         if proc.returncode != 0:
-            raise RuntimeError(f"subfleet runs show failed: {proc.stderr[-1000:]}")
+            raise RuntimeError(f"subfleet runs show failed (rc {proc.returncode}): {proc.stderr[-1000:]}")
         info = json.loads(proc.stdout)
         state = (info.get("job") or {}).get("state")
         if state != "lost":
@@ -551,15 +571,22 @@ def refresh_subfleet(run_dir: Path) -> dict:
     """Refresh one subfleet run's state, model and transcript path; write no answer.
 
     A collected run is final: its metadata is returned untouched, so a later collect cannot point
-    its transcript back at the job store."""
+    its transcript back at the job store. So is an abandoned or recovered run's, which nothing Subfleet
+    says can change. A reply that fails, takes too long or is not JSON is recorded as `collect_error`,
+    and the run keeps the state it had."""
     meta = read_meta(run_dir)
     job_id = meta.get("job_id")
-    if not job_id or (run_dir / "response.md").exists():
+    if not job_id or (run_dir / "response.md").exists() or meta.get("state") == "abandoned" or meta.get("recovered"):
         return meta
-    proc = subprocess.run(["subfleet", "runs", "show", job_id, "--json"], capture_output=True, text=True)
+    proc = subfleet("runs", "show", job_id, "--json")
     if proc.returncode != 0:
-        return record(run_dir, collect_error=proc.stderr[-1000:])
-    info = json.loads(proc.stdout)
+        return record(run_dir, collect_error=f"subfleet runs show --json: rc {proc.returncode}: {proc.stderr[-1000:]}")
+    try:
+        info = json.loads(proc.stdout)
+    except ValueError:
+        info = None
+    if not isinstance(info, dict):
+        return record(run_dir, collect_error=f"subfleet runs show --json gave no JSON object: {proc.stdout[:200]!r}")
     job = info.get("job") or {}
     fields = {}
     accepted = [a for a in info.get("attempts", []) if a.get("state") == "succeeded"]
@@ -611,7 +638,7 @@ def _seal(run_dir: Path) -> bool:
             write_meta(run_dir, meta)
             return False
     elif meta.get("backend") == "subfleet":
-        out = subprocess.run(["subfleet", "runs", "show", meta["job_id"], "--out"], capture_output=True, text=True)
+        out = subfleet("runs", "show", meta["job_id"], "--out")
         if out.returncode != 0 or not out.stdout.strip():
             meta["collect_error"] = (f"subfleet runs show --out: rc {out.returncode}, "
                                      f"{'no output' if not out.stdout.strip() else 'output'}: {out.stderr[-500:]}")

@@ -430,7 +430,8 @@ def sealing(tmp_path, monkeypatch):
         monkeypatch.setattr(seal, name, value)
     monkeypatch.setattr(seal, "assigned", lambda: ["opus-01", "sol-01"])
     states: dict[str, str | None] = {}
-    monkeypatch.setattr(seal, "job_state", lambda job_id: states.get(job_id))
+    monkeypatch.setattr(seal, "job_state", lambda job_id, give_up=None: states.get(job_id))
+    monkeypatch.setattr(seal, "RETRY_S", 0)
     commands = Commands(tmp_path)
     monkeypatch.setattr(seal, "run", commands)
     monkeypatch.setattr(seal, "git", lambda *a: SimpleNamespace(returncode=1, stdout="", stderr=""))  # staged changes

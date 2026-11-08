@@ -30,6 +30,7 @@ import argparse
 import collections
 import hashlib
 import json
+import os
 import re
 import shlex
 import shutil
@@ -57,7 +58,26 @@ def header(path: Path) -> dict:
     """A session log's first record, its `session_meta` payload ({} if it has none)."""
     with path.open() as fh:
         first = json.loads(fh.readline() or "{}")
-    return first.get("payload", {}) if first.get("type") == "session_meta" else {}
+    if not isinstance(first, dict) or first.get("type") != "session_meta":
+        return {}
+    payload = first.get("payload")
+    return payload if isinstance(payload, dict) else {}
+
+
+def read_headers(paths: list[Path]) -> list[tuple[Path, dict]]:
+    """Each readable log among `paths`, in order, with its header. Read once per invocation: the lanes
+    keep tens of thousands of logs, and every run's audit looks through all of them."""
+    out = []
+    for path in paths:
+        try:
+            out.append((path, header(path)))
+        except (OSError, ValueError):
+            continue
+    return out
+
+
+def lane_logs(lanes: Path) -> list[Path]:
+    return sorted(lanes.glob("*/sessions/*/*/*/rollout-*.jsonl"))
 
 
 def spawned_by(meta: dict) -> str | None:
@@ -68,15 +88,11 @@ def spawned_by(meta: dict) -> str | None:
     return None
 
 
-def find_threads(paths: list[Path], workdir: str) -> dict[str, dict]:
-    """Every session log among `paths` whose thread worked in `workdir`, by thread id; a thread's
-    first log wins."""
+def find_threads(paths: list[Path], workdir: str, heads: list[tuple[Path, dict]] | None = None) -> dict[str, dict]:
+    """Every session log among `paths` (or the logs `heads` has read already) whose thread worked in
+    `workdir`, by thread id; a thread's first log wins."""
     found = {}
-    for path in paths:
-        try:
-            meta = header(path)
-        except (OSError, json.JSONDecodeError):
-            continue
+    for path, meta in (read_headers(paths) if heads is None else heads):
         if meta.get("cwd") != workdir or not meta.get("id") or meta["id"] in found:
             continue
         found[meta["id"]] = {"path": path, "spawned_by": spawned_by(meta), "source": meta.get("source"),
@@ -90,15 +106,29 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def place(dest: Path, fill) -> None:
+    """Write `dest` whole or not at all: `fill(tmp)` writes a hidden file in the run's folder, above
+    codex-sessions/, whose every file `i86 prereg` hashes; os.replace then moves it in."""
+    tmp = dest.parent.parent / f".{dest.name}.{os.getpid()}.tmp"
+    try:
+        fill(tmp)
+        with open(tmp, "rb") as f:
+            os.fsync(f.fileno())
+        os.replace(tmp, dest)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
 def keep(src: Path, dest_dir: Path) -> Path:
-    """Copy a log into the run's folder, append-only: an existing copy must match byte for byte."""
+    """Copy a log into the run's folder, append-only: an existing copy must match byte for byte. The
+    copy lands whole or not at all, so a pass cut off midway leaves nothing a later pass refuses."""
     dest = dest_dir / src.name
     if dest.exists():
         if sha256(dest) != sha256(src):
             raise SystemExit(f"{dest} differs from {src}; the kept copy is final")
         return dest
     dest_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(src, dest)
+    place(dest, lambda tmp: shutil.copyfile(src, tmp))
     return dest
 
 
@@ -178,11 +208,14 @@ def audit_thread(path: Path, workdir: str) -> tuple[dict, dict]:
     return result, found
 
 
-def audit_run(run_dir: Path, lanes: Path) -> dict:
+def audit_run(run_dir: Path, lanes: Path, lane_heads: list[tuple[Path, dict]] | None = None) -> dict:
+    """Audit one run. `lane_heads`, the lanes' logs with their headers, is read here when not given."""
     meta = json.loads((run_dir / "meta.json").read_text())
     workdir = meta.get("workdir", "")
-    logs = [*sorted(lanes.glob("*/sessions/*/*/*/rollout-*.jsonl")), *sorted((run_dir / FOLDER).glob("rollout-*.jsonl"))]
-    threads = find_threads(logs, workdir) if workdir else {}
+    if lane_heads is None:
+        lane_heads = read_headers(lane_logs(lanes))
+    heads = [*lane_heads, *read_headers(sorted((run_dir / FOLDER).glob("rollout-*.jsonl")))]
+    threads = find_threads([], workdir, heads) if workdir else {}
     roots = [t for t, v in threads.items() if v["spawned_by"] is None]
     report = {"run": run_dir.name, "workdir": workdir, "threads": [], "missing": [], "flags": [],
               "orphans": sorted(t for t, v in threads.items() if v["spawned_by"] and v["spawned_by"] not in threads)}
@@ -207,7 +240,7 @@ def audit_run(run_dir: Path, lanes: Path) -> dict:
     report["passed"] = (bool(report["threads"]) and not report["missing"] and not report["orphans"]
                         and not report["flags"] and all(t["audit"]["passed"] for t in report["threads"]))
     (run_dir / FOLDER).mkdir(parents=True, exist_ok=True)
-    (run_dir / FOLDER / "audit.json").write_text(json.dumps(report, indent=1) + "\n")
+    place(run_dir / FOLDER / "audit.json", lambda tmp: tmp.write_text(json.dumps(report, indent=1) + "\n"))
     return report
 
 
@@ -229,9 +262,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--lanes", type=Path, default=LANES, help="the Subfleet lanes folder")
     args = ap.parse_args(argv)
     dirs = [RUNS / label for label in args.labels] if args.labels else codex_runs()
+    lane_heads = read_headers(lane_logs(args.lanes)) if dirs else []
     worst = 0
     for d in dirs:
-        r = audit_run(d, args.lanes)
+        r = audit_run(d, args.lanes, lane_heads)
         helpers = sum(1 for t in r["threads"] if t["spawned_by"])
         print(f"{r['run']}: {'ok' if r['passed'] else 'FAILED'}; {len(r['threads'])} threads ({helpers} sub-agents), "
               f"{r['web_calls']} web calls, {r['commands']} commands, {r['violations']} violations, "
