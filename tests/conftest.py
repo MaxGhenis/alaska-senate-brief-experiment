@@ -12,6 +12,19 @@ from i86 import graph as graph_mod  # noqa: E402
 from mock import I86_GRAPH  # noqa: E402
 
 
+NOWHERE = Path("/nonexistent/aksen-tests")
+
+
+@pytest.fixture(autouse=True)
+def _off_the_live_record(monkeypatch):
+    """Keep every test off this clone's sealed manifest (prereg/collected/, once it exists) and the
+    lanes' real session logs; a test that needs either sets it."""
+    from i86 import cli
+
+    monkeypatch.setattr(cli, "SEALED", NOWHERE / "prereg" / "collected" / "SHA256SUMS")
+    monkeypatch.setattr(runners, "LANES", NOWHERE / "lanes")
+
+
 @pytest.fixture(scope="session")
 def graph():
     """The I-86 map, a fixture for the machinery's tests."""

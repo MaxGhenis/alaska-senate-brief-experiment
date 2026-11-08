@@ -244,22 +244,25 @@ def _loads(text: str) -> tuple[object, list[dict]]:
         return obj, [{"repair": "trailing_comma", "count": len(removed), "before": removed}]
 
 
-def extract_json(text: str, repairs: list | None = None, repair: bool = True) -> dict:
+def extract_json(text: str, repairs: list | None = None, repair: bool = True, where: dict | None = None) -> dict:
     """The last fenced JSON block in an agent's final message that holds a 'nodes' object, else the
     outermost object. With `repair`, a block that parses only without its trailing commas is read
-    without them, and the repair is appended to `repairs`; without it, every block is read as written."""
+    without them, and the repair is appended to `repairs`; without it, every block is read as written.
+    `where`, if given, gets `block`: which fenced block was read (1 for the first), or "outermost"."""
     def load(t: str) -> tuple[object, list[dict]]:
         return _loads(t) if repair else (json.loads(t), [])
 
     blocks = _FENCE.findall(text)
-    for block in reversed(blocks):
+    for i in range(len(blocks) - 1, -1, -1):
         try:
-            obj, fixes = load(block)
+            obj, fixes = load(blocks[i])
         except json.JSONDecodeError:
             continue
         if isinstance(obj, dict) and "nodes" in obj:
             if repairs is not None:
                 repairs.extend(fixes)
+            if where is not None:
+                where["block"] = i + 1
             return obj
     start, end = text.find("{"), text.rfind("}")
     if start == -1 or end <= start:
@@ -270,6 +273,8 @@ def extract_json(text: str, repairs: list | None = None, repair: bool = True) ->
         raise ResponseError([f"the response's JSON does not parse: {exc}"]) from exc
     if repairs is not None:
         repairs.extend(fixes)
+    if where is not None:
+        where["block"] = "outermost"
     return obj
 
 
@@ -311,14 +316,23 @@ def drop_strays(expected: dict[str, set[str]], obj) -> list[dict]:
 def read_answer(graph: Graph, text: str) -> tuple[dict, list[dict]]:
     """An agent's final message's JSON, and a record of each repair made. An answer that `parse` accepts
     as written comes back as written, with no repairs, so a repair can never change what such an answer
-    says; only an answer that fails gets the registered repairs. `parse` still checks the result."""
+    says; only an answer that fails gets the registered repairs. `parse` still checks the result.
+
+    The repaired reading picks its block afresh: the last fenced block that parses once its trailing
+    commas go, which may come after the block the first reading took. Each repair record says which
+    block the answer came from (`block`) and which the first reading took (`as_written_block`, None
+    when no block or object parsed as written), so a reader sees when the two differ."""
+    first: dict = {}
     try:
-        obj = extract_json(text, repair=False)
+        obj = extract_json(text, repair=False, where=first)
         parse(graph, obj)
         return obj, []
     except Exception:  # any fault as written: the repaired reading below gets the same check
         pass
     repairs: list[dict] = []
-    obj = extract_json(text, repairs)
+    second: dict = {}
+    obj = extract_json(text, repairs, where=second)
     repairs += drop_strays(expected_keys(graph), obj)
+    for rec in repairs:
+        rec.update(block=second.get("block"), as_written_block=first.get("block"))
     return obj, repairs

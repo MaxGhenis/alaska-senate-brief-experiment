@@ -185,8 +185,8 @@ def cmd_collect(args) -> int:
 
 
 def cmd_abandon(args) -> int:
-    meta = runners.abandon(args.label)
-    print(f"{args.label}: abandoned at {meta['abandoned_at']}")
+    meta = runners.abandon(args.label, args.why)
+    print(f"{args.label}: abandoned at {meta['abandoned_at']}" + (f" ({args.why})" if args.why else ""))
     return 0
 
 
@@ -306,6 +306,22 @@ def _codex_suspects(transcript: list, session: dict) -> list:
 # Every answer must be in before the Division of Elections' count on 2026-11-10: a subfleet run that
 # finished later (scripts/deadline_guard.py kills runs still going at this time) stays out.
 DEADLINE = "2026-11-10T12:00:00Z"
+# The manifest scripts/seal.py stamps once every run has ended. Once it exists, only an answer it lists,
+# with the same SHA-256, counts: inclusion cannot change after the count.
+SEALED = ROOT / "prereg" / "collected" / "SHA256SUMS"
+
+
+def sealed_answers() -> dict[str, str] | None:
+    """{path relative to the repository: SHA-256} for each runs/*/response.md the sealed manifest lists,
+    or None before the seal."""
+    if not SEALED.exists():
+        return None
+    out = {}
+    for line in SEALED.read_text().splitlines():
+        sha, sep, path = line.partition("  ")
+        if sep and path.startswith("runs/") and path.endswith("/response.md"):
+            out[path] = sha
+    return out
 
 
 def _utc(text):
@@ -339,13 +355,22 @@ def accepted_runs(g, prompt_sha, allow_unaudited: bool = False, accept_prior: se
     and no prior context about these questions; a Codex run also needs a passing audit of its session
     logs, whose sub-agents' suspect calls count with the rest. A subfleet run also needs its arm's brief,
     unchanged, in what the lane gave the model, and a finish by DEADLINE; a run dispatched `--late`
-    stays out. The operator may read a run's suspect calls, or its prior context, and list it in
-    `accept_suspect` or `accept_prior` to pool it anyway."""
+    stays out. Once scripts/seal.py has sealed the answers (SEALED), a run's response.md must be in that
+    manifest with the same SHA-256. The operator may read a run's suspect calls, or its prior context,
+    and list it in `accept_suspect` or `accept_prior` to pool it anyway."""
     runs = {}
+    sealed = sealed_answers()
     for d in run_dirs():
         resp = d / "response.json"
         if not resp.exists():
             continue
+        if sealed is not None:
+            answer = d / "response.md"
+            key = f"runs/{d.name}/response.md"
+            if not answer.is_file() or sealed.get(key) != hashlib.sha256(answer.read_bytes()).hexdigest():
+                print(f"excluding {d.name}: its answer is not the one the sealed manifest "
+                      f"({SEALED.relative_to(ROOT) if SEALED.is_relative_to(ROOT) else SEALED}) lists", file=sys.stderr)
+                continue
         meta = runners.read_meta(d)
         want = prompt_sha.get(meta.get("arm")) if isinstance(prompt_sha, dict) else prompt_sha
         if want is None or meta.get("prompt_sha256") != want:
@@ -366,8 +391,10 @@ def accepted_runs(g, prompt_sha, allow_unaudited: bool = False, accept_prior: se
             continue
         family = meta.get("family")
         if family is not None and meta.get("model_served") != SERVED.get(family):
-            print(f"excluding {d.name}: a {family} run that {meta.get('model_served')} served, not "
-                  f"{SERVED.get(family)}", file=sys.stderr)
+            served = meta.get("model_served")
+            print(f"excluding {d.name}: a {family} run that " + (f"{served} served, not {SERVED.get(family)}" if served
+                  else f"no record shows {SERVED.get(family)} served (read recovered.model_evidence in its meta.json)"),
+                  file=sys.stderr)
             continue
         audit_path = d / "audit.json"
         try:
@@ -485,6 +512,7 @@ def main(argv=None) -> int:
     sub.add_parser("audit")
     ab = sub.add_parser("abandon", help="mark a run that will never finish, so collection can proceed")
     ab.add_argument("label")
+    ab.add_argument("--why", help="the reason, kept in the run's meta.json as abandon_reason")
     rc = sub.add_parser("recover", help="take a lost subfleet run's final message from its own transcript")
     rc.add_argument("label")
     s = sub.add_parser("simulate")

@@ -161,14 +161,18 @@ the `peltola_senator` check among them.
 - its answer fails `i86 check`, after the two repairs below;
 - it ran on a brief other than its arm's current one, or the prompt that Subfleet records sending
   lacks that brief byte for byte;
-- a model other than its own served it, by Subfleet's record: `claude-opus-5-5` for an Opus run,
-  `gpt-6.1-sol` for a Sol run;
+- no record shows that its own model served it: `claude-opus-5-5` for an Opus run, `gpt-6.1-sol`
+  for a Sol run. Subfleet keeps that record. For a lost run that `i86 recover` takes back, it reads
+  the model from an Opus run's transcript or, where Subfleet recorded none, from the session log
+  that a Sol run's lane kept for its thread;
 - `i86 audit` fails it, or, for a Sol run, `scripts/audit_codex_sessions.py` fails any thread behind
   it;
 - it fails or never starts;
 - Subfleet records no finish time for it in ISO 8601 with a time zone, or records it finishing after
   12:00Z on November 10;
-- I dispatched it with `i86 dispatch --late`, after `i86 collect` had copied answers in.
+- I dispatched it with `i86 dispatch --late`, after `i86 collect` had copied answers in;
+- `prereg/collected/SHA256SUMS` exists and leaves out its answer or lists another hash for it, so an
+  answer that reaches `runs/` after `scripts/seal.py` seals the record never counts.
 
 Each label gets one dispatch, and no run replaces another. `i86 check` takes the last bare or
 `json`-tagged fenced block in a run's answer that parses as JSON and holds a `nodes` object, or, if
@@ -176,12 +180,13 @@ no block does, the text from the answer's first `{` to its last `}`. It reads th
 first. If that reading fails the check, it reads the answer again with two repairs, the same in
 every arm, and records each repair it makes in `runs/<label>/repairs.json`. It drops each comma that
 follows a value and comes just before a closing brace or bracket, outside strings, when the JSON
-parses only without those commas. It also drops each key the template lacks, among the questions or
-in a question's forecasts, when the key holds null, text, a number, true, false, or a list with no
-object anywhere inside it, none of which can hold a forecast. Seven Opus answers failed the check in
-the DC and Texas studies, and six of them would have passed with these repairs. Any other fault
-still fails the run, and `scripts/arms.py --strict` reruns the analysis without the runs whose
-answers `i86 check` repaired.
+parses only without those commas. Without them, it picks the block again by the same rule, so it can
+take a different block than it took the first time, and each repair record names both. It also drops
+each key the template lacks, among the questions or in a question's forecasts, when the key holds
+null, text, a number, true, false, or a list with no object anywhere inside it, none of which can
+hold a forecast. Seven Opus answers failed the check in the DC and Texas studies, and six of them
+would have passed with these repairs. Any other fault in the block still fails the run, and
+`scripts/arms.py --strict` reruns the analysis without the runs whose answers `i86 check` repaired.
 
 A run with a suspect tool call, or whose `prior_context` mentions these questions, also stays out
 unless I accept the flag. Before the analysis runs, I hide each flag's run label and arm and cut any
@@ -217,8 +222,13 @@ then collects, checks and audits every answer, audits every thread behind each S
 the record. From 12:00Z on November 8, if no one has sealed the record, a launchd job does the same
 once every label in the assignment has gone out and every run has ended. It tries again every minute
 until it has committed and pushed the record, and from 12:00Z on November 10 it stops waiting for
-labels that never went out. From 15:30Z, it seals what it has, and its commit message names any
-answer or stamp it could not get. It gives up at 16:00Z, 7 a.m. in Juneau.
+labels that never went out. From 15:30Z, it seals what it has. It gives each run still going one pass
+of the deadline guard and abandons each run that Subfleet still gives no state for.
+`prereg/collected/GAPS.txt` and the commit message then name each such run, each answer it could not
+collect, each check or audit that ran out of time, and any stamp it could not get. It starts no stamp
+at or after 16:00Z (7 a.m. in Juneau), stops any stamp still running then, and gives up. Both
+launchd jobs watch only this clone's `runs/`, so every run must go out from this clone. The Mac runs
+no launchd job while it sleeps, so it must stay awake until 16:00Z on November 10.
 
 ## Registration
 

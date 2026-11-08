@@ -22,8 +22,11 @@ Subfleet does not say whether a run was lost, when `i86 recover` or `i86 collect
 later try may not (a succeeded run whose answer Subfleet did not hand over among them), or when
 `prereg` writes no fresh manifest or its stamp fails. From LAST_CALL (30 minutes before GIVE_UP; by
 hand, `--last-call`), it stops only when it has no fresh manifest: it seals what there is, without a
-missing answer, or with hashes alone when the stamp fails, and the commit message says so. A run still
-going at LAST_CALL gets one pass of scripts/deadline_guard.py, which kills and abandons it.
+missing answer, or with hashes alone when the stamp fails, and GAPS.txt and the commit message name
+each such gap and the runs it leaves out. A run still going at LAST_CALL gets one pass of
+scripts/deadline_guard.py, which kills and abandons it; a run whose state Subfleet still does not give
+is abandoned (`i86 abandon --why`) and named in GAPS.txt. Every command a pass runs has a time limit,
+and no pass starts the stamp at or after GIVE_UP, or gives it longer than the time left.
 
     .venv/bin/python scripts/seal.py --now [--last-call] [--dry-run]
     .venv/bin/python scripts/seal.py [--act-after 2026-11-08T12:00:00Z] [--give-up 2026-11-10T16:00:00Z] [--once]
@@ -35,6 +38,7 @@ import argparse
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -55,6 +59,11 @@ LAST_CALL = timedelta(minutes=30)  # before GIVE_UP: seal what there is
 MARKER = Path.home() / ".cache" / "aksen-sealing"
 STALE_S = 900
 FINISHED = {"succeeded", "failed", "cancelled", "canceled", "lost", "killed", "expired", "abandoned"}
+# Time limits, in seconds, for the commands a pass runs. Every write they make is whole or not at all
+# (src/i86/runners.py write_atomic), so a command cut off leaves nothing a later pass cannot redo.
+LIMIT = {"subfleet": 120, "abandon": 60, "recover": 300, "collect": 600, "check": 600, "audit": 900, "guard": 600,
+         "git": 120, "push": 300, "prereg": 900}
+UNKNOWN_AT_LAST_CALL = "Subfleet gave no state for it at the last call"
 
 
 def utc(text: str) -> datetime:
@@ -77,10 +86,21 @@ def log(text: str) -> None:
 
 
 def job_state(job_id: str) -> str | None:
-    proc = subprocess.run(["subfleet", "runs", "show", job_id, "--json"], capture_output=True, text=True)
-    if proc.returncode != 0:
+    """The job's state as Subfleet gives it, or None when Subfleet fails, gives no JSON, or takes too long."""
+    try:
+        proc = subprocess.run(["subfleet", "runs", "show", job_id, "--json"], capture_output=True, text=True,
+                              timeout=LIMIT["subfleet"])
+        if proc.returncode != 0:
+            return None
+        return (json.loads(proc.stdout).get("job") or {}).get("state")
+    except (subprocess.TimeoutExpired, ValueError, AttributeError):
         return None
-    return (json.loads(proc.stdout).get("job") or {}).get("state")
+
+
+def read_meta(d: Path) -> dict | None:
+    """A run folder's meta.json, or None while it has none."""
+    path = d / "meta.json"
+    return json.loads(path.read_text()) if path.exists() else None
 
 
 def assigned() -> list[str]:
@@ -90,17 +110,19 @@ def assigned() -> list[str]:
 
 def pending(now: datetime | None = None) -> dict[str, str]:
     """Runs that may still produce an answer, with their states (as `i86 collect` decides), and, before
-    KILL_AT, each assigned label not yet dispatched. A run whose state Subfleet does not give counts."""
+    KILL_AT, each assigned label not yet dispatched, or whose folder has no meta.json yet (a dispatch
+    starting). A run whose state Subfleet does not give counts, as "unknown"."""
     now = now or datetime.now(timezone.utc)
     out = {}
     have = {d.name for d in RUNS.iterdir()} if RUNS.exists() else set()
     if now < utc(KILL_AT):
         out.update({label: "not dispatched" for label in assigned() if label not in have})
+        out.update({label: "dispatching" for label in assigned()
+                    if label in have and not (RUNS / label / "meta.json").exists()})
     for d in sorted(RUNS.iterdir()) if RUNS.exists() else []:
-        meta_path = d / "meta.json"
-        if not meta_path.exists() or (d / "response.md").exists():
+        meta = read_meta(d)
+        if meta is None or (d / "response.md").exists():
             continue
-        meta = json.loads(meta_path.read_text())
         if meta.get("state") in FINISHED:
             continue
         state = job_state(meta["job_id"]) if meta.get("backend") == "subfleet" and meta.get("job_id") else None
@@ -115,10 +137,9 @@ def lost() -> tuple[list[str], list[str]]:
     runs Subfleet did not say about, which may be lost too."""
     out, unknown = [], []
     for d in sorted(RUNS.iterdir()) if RUNS.exists() else []:
-        meta_path = d / "meta.json"
-        if not meta_path.exists() or (d / "response.md").exists():
+        meta = read_meta(d)
+        if meta is None or (d / "response.md").exists():
             continue
-        meta = json.loads(meta_path.read_text())
         if (meta.get("backend") != "subfleet" or not meta.get("job_id") or meta.get("state") == "abandoned"
                 or meta.get("recovered")):
             continue
@@ -130,8 +151,21 @@ def lost() -> tuple[list[str], list[str]]:
     return out, unknown
 
 
+def unfetched() -> list[str]:
+    """Runs that succeeded but have no answer in runs/: `i86 collect` could not copy it."""
+    out = []
+    for d in sorted(RUNS.iterdir()) if RUNS.exists() else []:
+        meta = read_meta(d)
+        if meta is not None and meta.get("state") == "succeeded" and not (d / "response.md").exists():
+            out.append(d.name)
+    return out
+
+
 def git(*args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True)
+    try:
+        return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, timeout=LIMIT["git"])
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(["git", *args], 124, "", f"timed out after {LIMIT['git']} s")
 
 
 def sealed() -> bool:
@@ -158,36 +192,76 @@ def claim(who: str) -> bool:
     return True
 
 
-def run(cmd: list) -> subprocess.CompletedProcess:
-    proc = subprocess.run([str(c) for c in cmd], cwd=ROOT, capture_output=True, text=True)
-    log(f"$ {' '.join(str(c) for c in cmd)} -> rc {proc.returncode}")
+def run(cmd: list, timeout: float = 600) -> subprocess.CompletedProcess:
+    """Run a command in its own process group. Past `timeout` seconds the whole group is killed, and
+    the result has return code 124."""
+    argv = [str(c) for c in cmd]
+    child = subprocess.Popen(argv, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                             start_new_session=True)
+    try:
+        out, err = child.communicate(timeout=max(1.0, timeout))
+        rc = child.returncode
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(child.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        child.wait()
+        for pipe in (child.stdout, child.stderr):  # a process outside the group may hold them open
+            pipe.close()
+        out, err, rc = "", f"timed out after {timeout:.0f} s; killed", 124
+    proc = subprocess.CompletedProcess(argv, rc, out or "", err or "")
+    log(f"$ {' '.join(argv)} -> rc {proc.returncode}")
     for text in (proc.stdout.strip(), proc.stderr.strip()):
         if text:
             print(text[-4000:], flush=True)
     return proc
 
 
-def seal(who: str, last_call: bool = False) -> int:
+def seal(who: str, last_call: bool = False, give_up: datetime | None = None) -> int:
     """Collect, check, audit and stamp every answer into prereg/collected/ unless that folder exists,
     then commit and push runs/ and prereg/. Returns 0 once everything is pushed. Before the last call, a
     step that a later try may mend stops the pass (returns 1); at the last call, only a missing manifest
-    does, and the commit message names what is missing."""
+    does, and GAPS.txt and the commit message name what is missing. A run whose state Subfleet does not
+    give at the last call is abandoned and named. With `give_up`, no command before the commit runs past
+    it, and the stamp never starts at or after it; the commit and push may end later, since the stamp
+    they carry was made in time."""
     gaps = []
+
+    def left(limit: float) -> float:
+        """A command's time limit: its own, cut to the time left before `give_up`."""
+        if give_up is None:
+            return limit
+        return min(limit, (give_up - datetime.now(timezone.utc)).total_seconds())
+
+    def mendable(step: str, proc: subprocess.CompletedProcess) -> bool:
+        """Whether `step` timed out before the last call, which stops the pass; at the last call, a gap."""
+        if proc.returncode != 124:
+            return False
+        if not last_call:
+            log(f"{step} timed out; not sealing")
+            return True
+        gaps.append(f"{step} timed out, so its record is incomplete")
+        return False
+
     if not FOLDER.exists():
         lost_runs, unknown = lost()
         if unknown:
             if not last_call:
                 log(f"Subfleet did not say whether {', '.join(unknown)} were lost; not sealing")
                 return 1
-            gaps.append(f"Subfleet did not say whether {', '.join(unknown)} were lost")
+            for label in unknown:
+                run([I86, "abandon", label, "--why", UNKNOWN_AT_LAST_CALL], timeout=left(LIMIT["abandon"]))
+            gaps.append(f"Subfleet gave no state at the last call for {', '.join(unknown)}: abandoned, "
+                        "with no answer collected")
         for label in lost_runs:
-            rec = run([I86, "recover", label])  # changes nothing unless the run can be recovered
+            rec = run([I86, "recover", label], timeout=left(LIMIT["recover"]))  # changes nothing unless it recovers
             if rec.returncode not in (0, 2):  # 2: nothing to recover; anything else may pass
                 if not last_call:
                     log(f"recovering {label} failed; not sealing")
                     return 1
-                gaps.append(f"recovering {label} failed")
-        collect = run([I86, "collect"])
+                gaps.append(f"recovering {label} failed, so its answer is not collected")
+        collect = run([I86, "collect"], timeout=left(LIMIT["collect"]))
         if "still going" in collect.stdout:
             log("a run is still going: collect copied no answers; not sealing")
             return 1
@@ -195,13 +269,22 @@ def seal(who: str, last_call: bool = False) -> int:
             if not last_call:
                 log("collect left a succeeded run's answer out; not sealing")
                 return 1
-            gaps.append("collect left a succeeded run's answer out (see each run's collect_error)")
-        run([I86, "check"])  # exit 1 when an answer fails check: those stay out of the pool
-        run([I86, "audit"])  # exit 1 when an audit fails: likewise
-        run([PYTHON, CODEX_AUDIT])  # every thread behind each Sol run; exit 1 when one fails: likewise
+            missing = unfetched()
+            gaps.append(f"collect could not copy the answers of {', '.join(missing)} (see each run's collect_error)"
+                        if missing else f"collect exited {collect.returncode} (see the log)")
+        # check exits 1 when an answer fails check, audit when an audit fails, and the session audit
+        # (every thread behind each Sol run) likewise: those runs stay out of the pool.
+        for step, cmd, limit in (("i86 check", [I86, "check"], LIMIT["check"]),
+                                 ("i86 audit", [I86, "audit"], LIMIT["audit"]),
+                                 ("the session audit", [PYTHON, CODEX_AUDIT], LIMIT["audit"])):
+            if mendable(step, run(cmd, timeout=left(limit))):
+                return 1
+        if give_up is not None and datetime.now(timezone.utc) >= give_up:
+            log("past the give-up time: a stamp now would not predate the results; not stamping")
+            return 1
         sums, proof = PREREG / "SHA256SUMS", PREREG / "SHA256SUMS.ots"
         started = time.time()
-        prereg = run([I86, "prereg"])
+        prereg = run([I86, "prereg"], timeout=left(LIMIT["prereg"]))
         # Fresh: written by this prereg (passes run a minute apart), listing every answer collected.
         listed = ({line.split("  ", 1)[1] for line in sums.read_text().splitlines() if "  " in line}
                   if sums.exists() and sums.stat().st_mtime >= started - 1 else None)
@@ -212,6 +295,9 @@ def seal(who: str, last_call: bool = False) -> int:
         if not has_proof:
             if not last_call:
                 log("the OpenTimestamps stamp failed; not sealing yet")
+                return 1
+            if give_up is not None and datetime.now(timezone.utc) >= give_up:
+                log("the stamp failed and the give-up time has passed; not sealing")
                 return 1
             gaps.append("the OpenTimestamps stamp failed: hashes only")
         staging = FOLDER.with_name(FOLDER.name + ".partial")
@@ -240,12 +326,13 @@ def seal(who: str, last_call: bool = False) -> int:
                f"Sealed by {who} at {stamp()}, before the Division of Elections' count on 2026-11-10.\n\n"
                f"{noted}"
                "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>")
-    run(["git", "add", "runs", "prereg"])
+    if run(["git", "add", "runs", "prereg"], timeout=LIMIT["git"]).returncode != 0:
+        return 1
     if git("diff", "--cached", "--quiet", "--", "runs", "prereg").returncode != 0:
-        if run(["git", "commit", "-m", message, "--", "runs", "prereg"]).returncode != 0:
+        if run(["git", "commit", "-m", message, "--", "runs", "prereg"], timeout=LIMIT["git"]).returncode != 0:
             return 1
-    push = run(["git", "push", "origin", "HEAD"])
-    run(["git", "log", "-1", "--format=%h %cI%n%B"])
+    push = run(["git", "push", "origin", "HEAD"], timeout=LIMIT["push"])
+    run(["git", "log", "-1", "--format=%h %cI%n%B"], timeout=LIMIT["git"])
     return 0 if push.returncode == 0 and sealed() else 1
 
 
@@ -279,19 +366,23 @@ def main(argv=None) -> int:
                 return 1
             if args.now or now >= act_after:
                 waiting = {} if FOLDER.exists() else pending(now)
+                if waiting and last_call:
+                    # The guard should have ended them at KILL_AT: one pass of it now. A run whose state
+                    # Subfleet still does not give holds nothing up: seal() abandons it and names it.
+                    log("still going at the last call: " + ", ".join(f"{k}={v}" for k, v in waiting.items()))
+                    run([PYTHON, GUARD, "--once"], timeout=min(LIMIT["guard"], (give_up - now).total_seconds()))
+                    waiting = {k: v for k, v in pending().items() if v != "unknown"}
                 if waiting:
                     log("still going: " + ", ".join(f"{k}={v}" for k, v in waiting.items()))
                     if args.now:
                         return 1
-                    if last_call:  # the guard should have ended them at KILL_AT; one pass of it now
-                        run([PYTHON, GUARD, "--once"])
                 elif args.dry_run:
                     log("every run is done; would claim the marker and seal" if not FOLDER.exists()
                         else f"{rel(FOLDER)} exists but is not pushed; would commit and push it")
                     return 0
                 elif claim(who):
                     try:
-                        rc = seal(who, last_call)
+                        rc = seal(who, last_call, give_up)
                     finally:
                         MARKER.unlink(missing_ok=True)
                     if rc == 0 or args.now:

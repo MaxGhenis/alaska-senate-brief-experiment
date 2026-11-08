@@ -383,12 +383,14 @@ class Commands:
     "none" writes nothing, as when prereg dies before hashing. Its proof appears only when it exits 0."""
 
     def __init__(self, root: Path):
-        self.root, self.calls, self.rc, self.out = root, [], {}, {}
+        self.root, self.calls, self.rc, self.out, self.timeouts = root, [], {}, {}, {}
         self.manifest, self.pushed = "fresh", False
 
-    def __call__(self, cmd):
+    def __call__(self, cmd, timeout=600):
         cmd = [str(c) for c in cmd]
         self.calls.append(cmd)
+        self.timeouts[" ".join(cmd[:2]) if not cmd[0].endswith(("/i86", "/python")) else
+                      (cmd[1] if cmd[0].endswith("/i86") else Path(cmd[1]).name)] = timeout
         step = (cmd[1] if cmd[0].endswith("/i86") else Path(cmd[1]).name if cmd[0].endswith("/python")
                 else " ".join(cmd[:2]))
         rc = self.rc.get(step, 0)
@@ -464,7 +466,7 @@ def test_before_the_kill_time_every_assigned_label_not_yet_dispatched_is_pending
 
 
 def test_the_fallback_seals_nothing_before_the_first_dispatch(sealing, monkeypatch):
-    monkeypatch.setattr(seal, "seal", lambda who, last_call=False: pytest.fail("sealed with no run dispatched"))
+    monkeypatch.setattr(seal, "seal", lambda who, last_call=False, give_up=None: pytest.fail("sealed with no run dispatched"))
     assert seal.main(["--once", *EARLY]) == 0
     assert seal.main(["--now"]) == 1
     assert not seal.FOLDER.exists()
@@ -485,7 +487,9 @@ def test_a_lost_status_subfleet_does_not_give_stops_the_pass_until_the_last_call
     assert seal.seal("MOCK") == 1 and not seal.FOLDER.exists()
     assert seal.seal("MOCK", last_call=True) == 0
     assert "sol-01" in (seal.FOLDER / "GAPS.txt").read_text()
-    assert "Sealed at the last call, with gaps:\nSubfleet did not say whether sol-01" in sealing.commands.message()
+    assert "Sealed at the last call, with gaps:\nSubfleet gave no state at the last call for sol-01: abandoned" \
+        in sealing.commands.message()
+    assert [str(seal.I86), "abandon", "sol-01", "--why", seal.UNKNOWN_AT_LAST_CALL] in sealing.commands.calls
 
 
 @pytest.mark.parametrize("rc,seals", [(0, True), (2, True), (1, False)])
@@ -504,7 +508,7 @@ def test_a_collect_that_left_an_answer_out_stops_the_pass_until_the_last_call(se
     sealing.commands.rc["collect"] = 1
     assert seal.seal("MOCK") == 1 and not seal.FOLDER.exists()
     assert seal.seal("MOCK", last_call=True) == 0
-    assert "collect left a succeeded run's answer out" in (seal.FOLDER / "GAPS.txt").read_text()
+    assert "collect could not copy the answers of sol-01" in (seal.FOLDER / "GAPS.txt").read_text()
 
 
 def test_a_run_still_going_never_seals_even_at_the_last_call(sealing):
@@ -545,7 +549,7 @@ def test_the_last_call_starts_30_minutes_before_giving_up(sealing, monkeypatch):
     _run(sealing, "opus-01")
     _run(sealing, "sol-01")
     calls = []
-    monkeypatch.setattr(seal, "seal", lambda who, last_call=False: calls.append(last_call) or 1)
+    monkeypatch.setattr(seal, "seal", lambda who, last_call=False, give_up=None: calls.append(last_call) or 1)
     for argv in (["--once", "--act-after", "2000-01-01T00:00:00Z", "--give-up", _soon(120)],
                  ["--once", "--act-after", "2000-01-01T00:00:00Z", "--give-up", _soon(10)],
                  ["--now"], ["--now", "--last-call"]):
@@ -557,7 +561,7 @@ def test_at_the_last_call_a_run_still_going_gets_one_pass_of_the_guard(sealing, 
     _run(sealing, "opus-01")
     _run(sealing, "sol-01", state="running", answer=False)
     sealing.states["MOCK-sol-01"] = "running"
-    monkeypatch.setattr(seal, "seal", lambda who, last_call=False: pytest.fail("sealed while a run was going"))
+    monkeypatch.setattr(seal, "seal", lambda who, last_call=False, give_up=None: pytest.fail("sealed while a run was going"))
     guard_pass = [str(seal.PYTHON), str(seal.GUARD), "--once"]
     assert seal.main(["--once", *EARLY]) == 0
     assert guard_pass not in sealing.commands.calls
@@ -577,9 +581,9 @@ def guarding(tmp_path, monkeypatch):
     runs.mkdir()
     monkeypatch.setattr(guard, "RUNS", runs)
     monkeypatch.setattr(guard, "assigned", lambda: ["opus-01", "sol-01"])
-    out = SimpleNamespace(runs=runs, stopped=[], abandoned=[], asked=[], states={})
+    out = SimpleNamespace(runs=runs, stopped=[], abandoned=[], why=[], asked=[], states={})
     monkeypatch.setattr(guard, "stop", lambda label, job_id, reason: out.stopped.append(label))
-    monkeypatch.setattr(guard, "abandon", lambda label: out.abandoned.append(label))
+    monkeypatch.setattr(guard, "abandon", lambda label, why: out.abandoned.append(label) or out.why.append(why))
     monkeypatch.setattr(guard, "job_state", lambda job_id: out.asked.append(job_id) or out.states.get(job_id))
 
     def sleep(seconds):

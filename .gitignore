@@ -8,3 +8,5 @@ __pycache__/
 # The Sol runs' Codex session logs carry the lanes' account details. They stay out of git: the stamped
 # manifests in prereg/ hold their hashes, and a private copy is kept outside this repository.
 runs/*/codex-sessions/rollout-*.jsonl
+# A write cut off midway (src/i86/runners.py write_atomic) can leave its hidden temporary file behind.
+.*.tmp

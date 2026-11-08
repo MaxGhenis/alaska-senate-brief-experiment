@@ -46,6 +46,7 @@ import fcntl
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -60,6 +61,14 @@ RUNS = ROOT / "runs"
 WORK = Path.home() / ".cache" / "aksen-work"
 STAGE = Path.home() / ".cache" / "aksen-staging"
 JOBS = Path.home() / ".subfleet" / "jobs"  # subfleet's job store: <job_id>/a<N>/ per attempt
+# Each Codex lane's CODEX_HOME, as Subfleet's lanes table records it; its session logs (rollouts) are
+# <lane_id>/sessions/YYYY/MM/DD/rollout-<time>-<thread id>.jsonl.
+LANES = Path.home() / ".subfleet" / "lanes"
+# As Subfleet's CodexAdapter.attest (subfleet/adapters/codex.py): a rollout's name carries its thread
+# id, and more candidate rollouts than the limit leave the thread's model unattested.
+ROLLOUT_THREAD = re.compile(r"^rollout-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-"
+                            r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$", re.I)
+ROLLOUT_LIMIT = 32
 # Run states. Anything not known to be finished counts as still going.
 FINISHED = {"succeeded", "failed", "cancelled", "canceled", "lost", "killed", "expired", "abandoned"}
 
@@ -175,8 +184,23 @@ def served_by_codex(meta: dict) -> bool:
     return str(meta.get("lane_id", "")).startswith("codex") or str(meta.get("model_served", "")).startswith("gpt")
 
 
+def write_atomic(path: Path, data: bytes | str) -> None:
+    """Write a file whole or not at all: a reader, or a pass cut off midway, finds the old bytes or the
+    new, never part of them. The bytes go to a hidden file beside it, which os.replace then renames."""
+    raw = data.encode() if isinstance(data, str) else data
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+    try:
+        with open(tmp, "wb") as f:
+            f.write(raw)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
 def write_meta(run_dir: Path, meta: dict) -> None:
-    (run_dir / "meta.json").write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n")
+    write_atomic(run_dir / "meta.json", json.dumps(meta, indent=2, sort_keys=True) + "\n")
 
 
 def record(run_dir: Path, state: str | None = None, **fields) -> dict:
@@ -204,7 +228,8 @@ def still_going(meta: dict) -> bool:
     return True
 
 
-def abandon(label: str) -> dict:
+def abandon(label: str, why: str | None = None) -> dict:
+    """Mark a run abandoned (final), with the reason given, if any, as `abandon_reason`."""
     with bookkeeping_lock():
         run_dir = RUNS / label
         meta = read_meta(run_dir)
@@ -213,6 +238,8 @@ def abandon(label: str) -> dict:
         if (run_dir / "response.md").exists():
             raise RuntimeError(f"run {label} is already collected")
         meta.update(state="abandoned", abandoned_at=now())
+        if why:
+            meta["abandon_reason"] = why
         write_meta(run_dir, meta)
         return meta
 
@@ -254,23 +281,100 @@ def codex_final(text: str) -> tuple[str, str | None]:
     return final, None
 
 
+def codex_thread(text: str) -> str | None:
+    """The thread id of a `codex exec --json` transcript: that of its one `thread.started` event, or
+    None when it has none or more than one."""
+    ids = []
+    for raw in text.splitlines():
+        try:
+            event = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(event, dict) and event.get("type") == "thread.started":
+            ids.append(event.get("thread_id"))
+    return ids[0] if len(ids) == 1 and isinstance(ids[0], str) and ids[0] else None
+
+
+def _records(path: Path):
+    """A session log's JSON objects, line by line, skipping lines that do not parse. Only a regular
+    file is read (opening a FIFO would block)."""
+    if not path.is_file():
+        return
+    try:
+        with open(path, encoding="utf-8", errors="replace") as stream:
+            for line in stream:
+                try:
+                    event = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(event, dict):
+                    yield event
+    except OSError:
+        return
+
+
+def codex_served(lane_id: str | None, thread_id: str | None, requested: str | None) -> tuple[str | None, str]:
+    """The model that served a Codex thread, read from its lane's session log as Subfleet's
+    CodexAdapter.attest reads it for an attempt it accepts, and the evidence: the log's path, or why
+    there is none (then the model is None).
+
+    The candidates are every `*.jsonl` under the lane's `sessions/` whose name is not a rollout of
+    another thread; more than ROLLOUT_LIMIT is ambiguous. Exactly one candidate must open with a
+    `session_meta` record whose payload's id is the thread's. Its models are that payload's `model`,
+    then each `turn_context` payload's `model`, in order; the served model is the first that differs
+    from the one requested, else the last."""
+    if not lane_id or not thread_id:
+        return None, "no lane or thread id"
+    candidates = []
+    for path in (LANES / lane_id / "sessions").rglob("*.jsonl"):
+        named = ROLLOUT_THREAD.fullmatch(path.name)
+        if named and named[1].casefold() != thread_id.casefold():
+            continue
+        candidates.append(path)
+        if len(candidates) > ROLLOUT_LIMIT:
+            return None, f"more than {ROLLOUT_LIMIT} candidate session logs for thread {thread_id}"
+    matches = []
+    for path in sorted(candidates):
+        records = _records(path)
+        first = next(records, {})
+        payload = first.get("payload", {})
+        if first.get("type") != "session_meta" or not isinstance(payload, dict) or payload.get("id") != thread_id:
+            continue
+        models = [payload["model"]] if isinstance(payload.get("model"), str) else []
+        for event in records:
+            body = event.get("payload", {})
+            if event.get("type") == "turn_context" and isinstance(body, dict) and isinstance(body.get("model"), str):
+                models.append(body["model"])
+        matches.append((path, models))
+    if len(matches) != 1 or not matches[0][1]:
+        return None, (f"{len(matches)} session logs of thread {thread_id} in {LANES / lane_id / 'sessions'}; "
+                      "expected exactly one, naming a model")
+    path, models = matches[0]
+    return next((m for m in models if m != requested), models[-1]), str(path)
+
+
 def recover(label: str) -> dict:
     """Mark a subfleet run that its supervisor reports lost, but whose agent finished, as succeeded.
 
     Subfleet reports a run lost, and accepts no answer from it, when processes the agent started are
     still alive after the agent exits ("writers remain after exit receipt"). The agent may still have
     exited 0 with its final message in the attempt's transcript. For an accepted Claude attempt,
-    `subfleet runs show --out` prints the stream-json transcript's final `result` text and one newline;
-    for an accepted Codex attempt, the `codex exec --json` transcript's last completed agent message
-    (`codex_final`) and one newline. A recovered run's answer is the message alone.
+    `subfleet runs show --out` prints the stream-json transcript's final `result` text; for an accepted
+    Codex attempt, the `codex exec --json` transcript's last completed agent message (`codex_final`); in
+    each case with a newline added when the text lacks one. A recovered run's answer is the message alone.
     Recovery takes the message only when the job's state is `lost`, the run is neither collected nor
     abandoned, and one attempt exited 0 without a signal and has a transcript that finished cleanly: for
     Claude, exactly one `result` event, a successful one with a non-empty message; for Codex, one turn,
-    completed, with a final message (`codex_final`). A Codex transcript does not name its model, so a
-    recovered Sol run takes the model Subfleet attests for the attempt. Recovery records the attempt, the
-    supervisor's reason, the transcript's format, and the SHA-256 of the message and of the whole
-    transcript; `seal` copies the transcript only if it is unchanged, so the audit reads what recovery
-    read. Recovery is final, like abandonment. It raises `Unrecoverable` when there is nothing to take.
+    completed, with a final message (`codex_final`). A Claude transcript names its model. A Codex
+    transcript does not, and Subfleet recorded no model for any of the 30 Codex attempts it had
+    quarantined by 2026-11-08, so a recovered Sol run without one takes the model its lane's session log
+    names for the transcript's thread (`codex_served`, as Subfleet reads it for the attempts it accepts);
+    `recovered.model_evidence` gives that log's path, or why there is none. With none, the model is None,
+    and the run stays out of the analysis. Recovery
+    records the attempt, the supervisor's reason, the transcript's format, and the SHA-256 of the message
+    and of the whole transcript; `seal` copies the transcript only if it is unchanged, so the audit reads
+    what recovery read. Recovery is final, like abandonment. It raises `Unrecoverable` when there is
+    nothing to take.
     """
     with bookkeeping_lock():
         run_dir = RUNS / label
@@ -301,8 +405,12 @@ def recover(label: str) -> dict:
             codex = str(a.get("lane_id") or "").startswith("codex")
             if codex:
                 final, problem = codex_final(text)
-                served = a.get("model_served")
+                served, evidence = a.get("model_served"), "subfleet"
+                if not served:
+                    served, evidence = codex_served(a.get("lane_id"), a.get("native_session_id") or codex_thread(text),
+                                                    a.get("model_requested"))
             else:
+                evidence = "transcript"
                 results = []
                 for raw in text.splitlines():
                     try:
@@ -327,6 +435,7 @@ def recover(label: str) -> dict:
                             recovered={"at": now(), "attempt_state": a.get("state"),
                                        "supervisor_reason": a.get("quarantine_reason"),
                                        "format": "codex" if codex else "claude",
+                                       "model_evidence": evidence,
                                        "result_sha256": hashlib.sha256(final.encode()).hexdigest(),
                                        "transcript_sha256": hashlib.sha256(data).hexdigest()})
                 write_meta(run_dir, meta)
@@ -513,7 +622,7 @@ def _seal(run_dir: Path) -> bool:
         attempt = JOBS / meta["attempt_id"] if meta.get("attempt_id") else None
         if attempt and (attempt / "prompt.sent.md").exists():
             sent = (attempt / "prompt.sent.md").read_bytes()
-            (run_dir / "prompt.sent.md").write_bytes(sent)
+            write_atomic(run_dir / "prompt.sent.md", sent)
             meta["prompt_sent_sha256"] = hashlib.sha256(sent).hexdigest()
     elif meta.get("backend") in {"claude", "manual"}:
         staged = staged_response(run_dir.name)
@@ -523,11 +632,13 @@ def _seal(run_dir: Path) -> bool:
     else:
         return False
     if data is not None:
-        (run_dir / "transcript.jsonl").write_bytes(data)
-        meta["transcript_original"] = str(transcript)
+        write_atomic(run_dir / "transcript.jsonl", data)
+        meta.setdefault("transcript_original", str(transcript))  # kept if a cut-off pass set it already
         meta["transcript"] = str(run_dir / "transcript.jsonl")
         meta["transcript_sha256"] = hashlib.sha256(data).hexdigest()
-    (run_dir / "response.md").write_text(answer)
     meta["collected_at"] = now()
     write_meta(run_dir, meta)
+    # The answer goes last, so a run with a response.md has everything else: a pass cut off before this
+    # line leaves the run uncollected, and the next `i86 collect` copies it whole again.
+    write_atomic(run_dir / "response.md", answer)
     return True

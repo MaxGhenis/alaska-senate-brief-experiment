@@ -24,7 +24,7 @@ def area(tmp_path, monkeypatch):
     monkeypatch.setattr(guard, "job_state", lambda job_id: states[job_id])
     stopped, abandoned = [], []
     monkeypatch.setattr(guard, "stop", lambda label, job_id, reason: stopped.append(label))
-    monkeypatch.setattr(guard, "abandon", lambda label: abandoned.append(label))
+    monkeypatch.setattr(guard, "abandon", lambda label, why: abandoned.append(label))
     return stopped, abandoned
 
 

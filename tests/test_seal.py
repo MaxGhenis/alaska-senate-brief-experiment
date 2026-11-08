@@ -53,7 +53,7 @@ def test_a_fresh_marker_blocks_a_second_sealer_and_a_stale_one_does_not(area):
 def test_nobody_seals_again_once_the_folder_is_committed_and_pushed(area, monkeypatch):
     seal.FOLDER.mkdir(parents=True)
     monkeypatch.setattr(seal, "sealed", lambda: True)
-    monkeypatch.setattr(seal, "seal", lambda who, last_call=False: pytest.fail("sealed twice"))
+    monkeypatch.setattr(seal, "seal", lambda who, last_call=False, give_up=None: pytest.fail("sealed twice"))
     assert seal.main(["--now"]) == 0
     assert seal.main(["--once", "--act-after", "2000-01-01T00:00:00Z"]) == 0
     assert not seal.MARKER.exists()
@@ -66,7 +66,7 @@ def test_a_sealed_folder_not_yet_pushed_is_pushed_without_collecting_again(area,
     calls = []
     monkeypatch.setattr(seal, "sealed", lambda: bool(calls))
     monkeypatch.setattr(seal, "pending", lambda now=None: pytest.fail("checked runs after collection"))
-    monkeypatch.setattr(seal, "seal", lambda who, last_call=False: calls.append(who) or 0)
+    monkeypatch.setattr(seal, "seal", lambda who, last_call=False, give_up=None: calls.append(who) or 0)
     assert seal.main(["--now"]) == 0 and len(calls) == 1
 
 
@@ -77,7 +77,7 @@ def test_the_fallback_keeps_trying_after_a_failed_pass(area, monkeypatch):
     outcomes = iter([RuntimeError("MOCK subfleet down"), 1, 0])
     passes = []
 
-    def fake_seal(who, last_call=False):
+    def fake_seal(who, last_call=False, give_up=None):
         passes.append(who)
         out = next(outcomes)
         if isinstance(out, Exception):
@@ -111,7 +111,7 @@ def test_sealing_recovers_lost_runs_first_and_audits_every_codex_thread_before_s
     class Done:
         returncode, stdout, stderr = 0, "", ""
 
-    def fake_run(cmd):
+    def fake_run(cmd, timeout=600):
         cmds.append([str(c) for c in cmd])
         if cmds[-1][1:] == ["prereg"]:  # a fresh manifest of every answer, and its proof
             answers = sorted(str(p.relative_to(tmp_path)) for p in seal.RUNS.glob("*/response.md"))
@@ -135,16 +135,16 @@ def test_sealing_recovers_lost_runs_first_and_audits_every_codex_thread_before_s
 
 
 def test_sealing_by_hand_refuses_while_a_run_is_still_going(area, monkeypatch):
-    monkeypatch.setattr(seal, "seal", lambda who, last_call=False: pytest.fail("sealed while a run was still going"))
+    monkeypatch.setattr(seal, "seal", lambda who, last_call=False, give_up=None: pytest.fail("sealed while a run was still going"))
     assert seal.main(["--now"]) == 1
     area["MOCK-3"] = "succeeded"
-    monkeypatch.setattr(seal, "seal", lambda who, last_call=False: 0)
+    monkeypatch.setattr(seal, "seal", lambda who, last_call=False, give_up=None: 0)
     assert seal.main(["--now"]) == 0
     assert not seal.MARKER.exists()
 
 
 def test_the_fallback_waits_for_its_time_and_gives_up_after_the_deadline(area, monkeypatch):
     area["MOCK-3"] = "succeeded"
-    monkeypatch.setattr(seal, "seal", lambda who, last_call=False: pytest.fail("sealed before its time"))
+    monkeypatch.setattr(seal, "seal", lambda who, last_call=False, give_up=None: pytest.fail("sealed before its time"))
     assert seal.main(["--once", "--act-after", "2999-01-01T00:00:00Z", "--give-up", "2999-01-02T00:00:00Z"]) == 0
     assert seal.main(["--act-after", "2000-01-01T00:00:00Z", "--give-up", "2000-01-02T00:00:00Z"]) == 1
