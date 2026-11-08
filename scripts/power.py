@@ -1,7 +1,7 @@
 """Post hoc power for the three registered primaries. Exploratory: not part of the registered analysis.
 
     .venv/bin/python scripts/power.py [--per-run outputs/arms/per_run.csv] [--out outputs/power]
-                                      [--studies 2000] [--draws 2000] [--seed 0]
+                                      [--runs runs] [--studies 2000] [--draws 2000] [--seed 0]
 
 No registered primary rejected its null (outputs/arms/summary.md). This script asks what more runs of
 these two models could have changed. From an analysis's per-run table (the registered one by
@@ -24,8 +24,10 @@ and arm, so the registered estimate's variance is 2 (s_opus^2 + s_sol^2) / N. It
   past 5%/3, if its true effect equals today's estimate, and if there is none. This normal
   approximation ignores the penalty a second look owes, so it overstates what an honest test of the
   pooled runs would give;
-- summary.md: the effects these runs could detect, the runs each effect would need, and the
-  second-wave chances.
+- summary.md: the effects these runs could detect, the runs each effect would need, what those counts
+  rest on, and the second-wave chances. For E1 it also signs each question's jump toward the direction
+  most runs chose, lists the answers that run the other way, and quotes each one's reasoning from its
+  sealed `response.json` (`--runs`), so a reader can tell a forecast from a swapped entry.
 
 The true effects: today's estimate of each primary and, for P2 and E1, a quarter, a half and all of
 its mean without its block, added to every run in the block's arms (E1 widening, as the registration
@@ -41,6 +43,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import math
 import statistics
 import sys
@@ -286,10 +289,12 @@ def step_words(score: float) -> str:
     return f"{'-' if k < 0 else ''}{'' if abs(k) == 1 else abs(k)}D/12"
 
 
-def oriented_index(per_run_csv: Path) -> list[tuple[str, str, float]] | None:
+def oriented_index(per_run_csv: Path, swapped=frozenset()) -> list[tuple[str, str, float]] | None:
     """E1's index with each question's jump signed toward the direction most runs chose (the sign of the
-    question's median jump), in place of the absolute jump, which counts a reversed answer as a jump
-    the usual way round. Exploratory; None if the table lacks signed jumps."""
+    question's median jump), in place of the absolute jump, which scores an answer the same whichever
+    way round its forecaster entered it. `swapped` names (run, question) answers to read the other way
+    round first, as if their forecaster had entered the two sides' values in each other's ranges.
+    Exploratory; None if the table lacks signed jumps."""
     name, nodes, _, _ = next(p for p in arms.PRIMARY if p[0] == "E1 effect index")
     table: dict[tuple[str, str, str], dict[str, dict[str, str]]] = {}
     with open(per_run_csv, newline="") as f:
@@ -297,9 +302,23 @@ def oriented_index(per_run_csv: Path) -> list[tuple[str, str, float]] | None:
             if "jump" not in r:
                 return None
             table.setdefault((r["run"], r["family"], r["arm"]), {})[r["question"]] = r
-    sign = {n: math.copysign(1.0, statistics.median(float(q[n]["jump"]) for q in table.values())) for n in nodes}
-    return [(fam, arm, statistics.fmean(sign[n] * float(q[n]["jump"]) for n in nodes))
-            for (_, fam, arm), q in sorted(table.items())]
+    jumps = {key: {n: (-1.0 if (key[0], n) in swapped else 1.0) * float(q[n]["jump"]) for n in nodes}
+             for key, q in table.items()}
+    sign = {n: math.copysign(1.0, statistics.median(j[n] for j in jumps.values())) for n in nodes}
+    return [(fam, arm, statistics.fmean(sign[n] * j[n] for n in nodes))
+            for (_, fam, arm), j in sorted(jumps.items())]
+
+
+def answer_reasoning(runs_dir: Path, run: str, question: str) -> str | None:
+    """The reasoning a run's sealed answer gives for one question, on one line, or None if the run's
+    response.json lacks it."""
+    try:
+        nodes = json.loads((Path(runs_dir) / run / "response.json").read_text()).get("nodes")
+    except (OSError, ValueError, AttributeError):
+        return None
+    node = nodes.get(question) if isinstance(nodes, dict) else None
+    text = node.get("reasoning") if isinstance(node, dict) else None
+    return " ".join(text.split()) if isinstance(text, str) and text.strip() else None
 
 
 def reversed_answers(per_run_csv: Path, at_least: float = 0.1) -> list[tuple[str, str, float]]:
@@ -392,6 +411,7 @@ def main(argv=None) -> int:
     ap.add_argument("--per-run", type=Path, default=ROOT / "outputs" / "arms" / "per_run.csv")
     ap.add_argument("--effects", type=Path, default=None, help="default: effects.csv beside --per-run")
     ap.add_argument("--out", type=Path, default=ROOT / "outputs" / "power")
+    ap.add_argument("--runs", type=Path, default=ROOT / "runs", help="the sealed runs, for reversed answers' reasoning")
     ap.add_argument("--studies", type=int, default=2000)
     ap.add_argument("--draws", type=int, default=2000)
     ap.add_argument("--sizes", type=int, nargs="*", default=list(SIZES))
@@ -525,13 +545,29 @@ def main(argv=None) -> int:
     if oriented is not None:
         flipped = reversed_answers(a.per_run)
         e1 = info["E1 effect index"]
-        e_or = arms.effect(oriented, arms.MAIN_E)
-        L += ["- **E1's absolute jumps fold reversed answers in.** "
-              + ("; ".join(f"{run} answered {q} against the other runs' direction (jump {j:+.2f})" for run, q, j in flipped)
-                 + ". " if flipped else "")
-              + f"With each question's jump signed toward the direction most runs chose, E1 reads {e_or.est:.4f} "
-              f"(standard error {e_or.se:.4f}, estimate over standard error {e_or.est / e_or.se:.2f}) in place of "
-              f"{e1['est']:.4f}. Exploratory; the registered measure stands."]
+
+        def reading(rows) -> str:
+            e = arms.effect(rows, arms.MAIN_E)
+            return f"{e.est:.4f} (standard error {e.se:.4f}, estimate over standard error {e.est / e.se:.2f})"
+
+        head = ("- **E1's absolute jumps ignore each jump's direction,** so they score an answer the same "
+                "whichever way round its forecaster entered it. Signed toward the direction most runs chose, E1 "
+                f"reads {reading(oriented)}")
+        if flipped:
+            back = oriented_index(a.per_run, swapped={(run, q) for run, q, _ in flipped})
+            L += [head + " with the answers below as written and " + reading(back) + " with them read the other "
+                  f"way round, beside {e1['est']:.4f} from the registered absolute jumps. Exploratory; the "
+                  "registered measure stands. "
+                  "The answers that run against their question's usual direction by at least 0.1 (a jump is "
+                  "Peltola's side minus Sullivan's), each with its run's own reasoning for it:"]
+            for run, q, j in flipped:
+                why = answer_reasoning(a.runs, run, q)
+                L.append(f"  - {run}, {q}: jump {j:+.2f}, a higher chance where "
+                         f"{'Sullivan' if j < 0 else 'Peltola'} wins. "
+                         + (f'Its reasoning: "{why}"' if why else "Its answer gives no reasoning."))
+        else:
+            L += [head + f", beside {e1['est']:.4f} from the registered absolute jumps; no answer runs against its "
+                  "question's usual direction by 0.1 or more. Exploratory; the registered measure stands."]
     L += ["", "## A pooled second wave", "",
           "The chance that today's runs pooled with a second wave cross 5%/3, if the true effect equals "
           "today's estimate, with the normal cutoff and then the t cutoff (today's degrees of freedom plus "

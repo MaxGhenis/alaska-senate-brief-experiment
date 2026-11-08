@@ -15,13 +15,17 @@ Invariants:
 - the simulated estimates vary as the analytic standard error says; with no effect the simulated rule
   rejects any primary at most 5% of the time; and the simulated power agrees with the analytic
   approximation on normal MOCK runs (differential test);
-- main() refuses a per-run table that disagrees with its effects.csv and writes its outputs.
+- main() refuses a per-run table that disagrees with its effects.csv and writes its outputs;
+- `oriented_index` with a reversed answer read the other way round equals the absolute index when
+  every other answer runs the usual way (differential test), and main() quotes each reversed answer's
+  own reasoning from its sealed response.json.
 """
 
 from __future__ import annotations
 
 import csv
 import importlib.util
+import json
 import math
 from pathlib import Path
 
@@ -322,3 +326,46 @@ def test_mock_oriented_index_signs_a_reversed_answer_against_the_run(tmp_path):
     oriented = power.oriented_index(path)
     assert sorted(v for _, _, v in oriented)[0] == pytest.approx((0.2 * (len(nodes) - 1) - 0.2) / len(nodes))
     assert power.reversed_answers(path) == [("opus-MOCK0", "sullivan_post", -0.2)]
+    # Read the other way round, the reversed answer joins the rest, and the signed index equals the absolute one.
+    back = power.oriented_index(path, swapped={("opus-MOCK0", "sullivan_post")})
+    assert [v for _, _, v in back] == pytest.approx([0.2] * len(back))
+    assert power.oriented_index(path, swapped={("opus-MOCK1", "no_such_question")}) == oriented
+
+
+def test_mock_answer_reasoning_reads_the_sealed_answer(tmp_path):
+    run = tmp_path / "sol-MOCK1"
+    run.mkdir()
+    (run / "response.json").write_text(json.dumps({"nodes": {
+        "sullivan_post": {"forecasts": {}, "reasoning": "MOCK: losing\n  raises the chance."},
+        "recount": {"forecasts": {}}}}))
+    assert power.answer_reasoning(tmp_path, "sol-MOCK1", "sullivan_post") == "MOCK: losing raises the chance."
+    assert power.answer_reasoning(tmp_path, "sol-MOCK1", "recount") is None
+    assert power.answer_reasoning(tmp_path, "sol-MOCK1", "contest") is None
+    assert power.answer_reasoning(tmp_path, "sol-MOCK9", "sullivan_post") is None
+    (run / "response.json").write_text("not json")
+    assert power.answer_reasoning(tmp_path, "sol-MOCK1", "sullivan_post") is None
+
+
+def test_mock_main_quotes_a_reversed_answers_reasoning(tmp_path):
+    per_run = write_mock_tables(tmp_path / "in", mock_primaries(OBSERVED_COUNTS, {"opus": 0.3, "sol": 0.6}, seed=29))
+    with open(per_run, newline="") as f:
+        rows = list(csv.DictReader(f))
+    target = next(r for r in rows if r["question"] == "sullivan_post" and float(r["abs_jump"]) >= 0.5)
+    for r in rows:  # MOCK: every answer jumps the usual way but the target, whose absolute jump stays the same
+        r["jump"] = str(-float(r["abs_jump"]) if r is target else float(r["abs_jump"]))
+    with open(per_run, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=["run", "family", "arm", "question", "jump", "abs_jump"])
+        w.writeheader()
+        w.writerows(rows)
+    runs = tmp_path / "runs"
+    (runs / target["run"]).mkdir(parents=True)
+    (runs / target["run"] / "response.json").write_text(json.dumps(
+        {"nodes": {"sullivan_post": {"reasoning": "MOCK: losing raises the chance."}}}))
+    out = tmp_path / "out"
+    assert power.main(["--per-run", str(per_run), "--out", str(out), "--runs", str(runs), "--studies", "20",
+                       "--draws", "20", "--sizes", "24", "--waves", "24", "--simulate-max", "24"]) == 0
+    text = (out / "summary.md").read_text()
+    assert f"  - {target['run']}, sullivan_post: jump -" in text
+    assert "a higher chance where Sullivan wins" in text
+    assert 'Its reasoning: "MOCK: losing raises the chance."' in text
+    assert "with them read the other way round" in text
