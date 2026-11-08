@@ -1,0 +1,7 @@
+outcome,family,estimate,se,df,ci_lo,ci_hi,n
+P1 coached placebo,opus,nan,nan,nan,nan,nan,0
+P1 coached placebo,sol,-0.018749999999996565,0.020345365545423516,6.0,-0.06853331606897009,0.031033316068976958,10
+P2 uncoached placebo,opus,nan,nan,nan,nan,nan,0
+P2 uncoached placebo,sol,0.6534722222222046,0.8268123525984665,6.0,-1.3696647220240439,2.676609166468453,10
+E1 effect index,opus,nan,nan,nan,nan,nan,0
+E1 effect index,sol,0.006626388888888862,0.01851905256753083,6.0,-0.03868810031057917,0.051940878088356894,10
