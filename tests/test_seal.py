@@ -114,6 +114,10 @@ def test_sealing_recovers_lost_runs_first_and_audits_every_codex_thread_before_s
 
     def fake_run(cmd, timeout=600):
         cmds.append([str(c) for c in cmd])
+        records = {"check": "response.json", "audit": "audit.json"}  # opus-1, the one answer, is no Codex run
+        if cmds[-1][1] in records:
+            for answer in seal.RUNS.glob("*/response.md"):
+                (answer.parent / records[cmds[-1][1]]).write_text("{}\n")
         if cmds[-1][1:] == ["prereg"]:  # a fresh manifest of every answer, and its proof
             answers = sorted(str(p.relative_to(tmp_path)) for p in seal.RUNS.glob("*/response.md"))
             (prereg / "SHA256SUMS").write_text("".join(f"MOCK  {a}\n" for a in ["README.md", *answers]))

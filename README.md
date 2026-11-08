@@ -165,8 +165,8 @@ the `peltola_senator` check among them.
   for a Sol run. Subfleet keeps that record. For a lost run that `i86 recover` takes back, it reads
   the model from an Opus run's transcript or, where Subfleet recorded none, from the session log
   that a Sol run's lane kept for its thread;
-- `i86 audit` fails it, or, for a Sol run, `scripts/audit_codex_sessions.py` fails any thread behind
-  it;
+- `i86 audit` fails it, or, for a Sol run, `scripts/audit_codex_sessions.py` fails it or any thread
+  behind it;
 - it fails or never starts;
 - Subfleet records no finish time for it in ISO 8601 with a time zone, or records it finishing after
   12:00Z on November 10;
@@ -222,13 +222,19 @@ then collects, checks and audits every answer, audits every thread behind each S
 the record. From 12:00Z on November 8, if no one has sealed the record, a launchd job does the same
 once every label in the assignment has gone out and every run has ended. It tries again every minute
 until it has committed and pushed the record, and from 12:00Z on November 10 it stops waiting for
-labels that never went out. From 15:30Z, it seals what it has. It gives each run still going one pass
-of the deadline guard and abandons each run that Subfleet still gives no state for.
-`prereg/collected/GAPS.txt` and the commit message then name each such run, each answer it could not
-collect, each check or audit that ran out of time, and any stamp it could not get. It starts no stamp
-at or after 16:00Z (7 a.m. in Juneau), stops any stamp still running then, and gives up. Both
-launchd jobs watch only this clone's `runs/`, so every run must go out from this clone. The Mac runs
-no launchd job while it sleeps, so it must stay awake until 16:00Z on November 10.
+labels that never went out. Until 15:30Z, it also tries again when a check or audit stops before
+writing an answer's record.
+
+From 15:30Z, it seals what it has. It gives each run still going one pass of the deadline guard and
+abandons each run that Subfleet still gives no state for. In `prereg/collected/GAPS.txt` and the
+commit message, it names each such run and each answer it could not collect after up to three tries
+each of `i86 recover` and `i86 collect`. It also names each check or audit that ran out of time or
+wrote no record for an answer, and any stamp it could not get. It keeps the last 10 minutes before
+16:00Z for the check, the audits and the stamp, and lets the first try of `i86 collect` use up to 2
+of them. It starts no stamp at or after 16:00Z (7 a.m. in Juneau), stops any stamp still running
+then, and gives up. Both launchd jobs watch only this clone's `runs/`, so every run must go out from
+this clone. The Mac runs no launchd job while it sleeps, so it must stay awake until 16:00Z on
+November 10.
 
 ## Registration
 

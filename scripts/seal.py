@@ -19,15 +19,21 @@ prereg/collected/, adds that folder to prereg/README.md, and commits and pushes.
 sealed once that folder is committed and pushed; until then, the fallback tries again every minute,
 and a pass that fails, at any step, ends nothing but that pass. A pass also stops, to try again, when
 Subfleet does not say whether a run was lost, when `i86 recover` or `i86 collect` hits an error that a
-later try may not (a succeeded run whose answer Subfleet did not hand over among them), or when
-`prereg` writes no fresh manifest or its stamp fails. From LAST_CALL (30 minutes before GIVE_UP; by
-hand, `--last-call`), it stops only when it has no fresh manifest: it seals what there is, without a
-missing answer, or with hashes alone when the stamp fails, and GAPS.txt and the commit message name
+later try may not (a succeeded run whose answer Subfleet did not hand over among them), when a check
+or audit leaves a collected answer without its record (as a step that crashed or was killed does), or
+when `prereg` writes no fresh manifest or its stamp fails. From LAST_CALL (30 minutes before GIVE_UP;
+by hand, `--last-call`), it stops only when it has no fresh manifest. It tries `i86 recover` and `i86
+collect` up to LAST_CALL_TRIES times while they fail, then seals what there is, without a missing
+answer or record, or with hashes alone when the stamp fails, and GAPS.txt and the commit message name
 each such gap and the runs it leaves out. A run still going at LAST_CALL gets one pass of
 scripts/deadline_guard.py, which kills and abandons it; a run whose state Subfleet still does not give
 is abandoned (`i86 abandon --why`) and named in GAPS.txt, which also names every assigned run left
 without an answer. A run recorded as finished is never abandoned for want of a state. Every command a
-pass runs has a time limit cut to the time left before GIVE_UP, and none starts at or after it.
+pass runs has a time limit cut to the time left before GIVE_UP, and none starts at or after it. At the
+last call, the steps before check also leave the last RESERVE_S for check, the audits and prereg:
+Subfleet's state queries, the guard pass, `i86 recover` and later tries of `i86 collect` stop short of
+it, and collect's first try gets at least COLLECT_FLOOR_S, since without it the record holds no
+answers.
 
     .venv/bin/python scripts/seal.py --now [--last-call] [--dry-run]
     .venv/bin/python scripts/seal.py [--act-after 2026-11-08T12:00:00Z] [--give-up 2026-11-10T16:00:00Z] [--once]
@@ -66,8 +72,13 @@ FINISHED = {"succeeded", "failed", "cancelled", "canceled", "lost", "killed", "e
 LIMIT = {"subfleet": 60, "abandon": 60, "recover": 300, "collect": 600, "check": 600, "audit": 900, "guard": 600,
          "git": 120, "push": 300, "prereg": 900}
 UNKNOWN_AT_LAST_CALL = "Subfleet gave no state for it at the last call"
-RETRY_S = 5  # before asking Subfleet a second time for a run's state (`lost`)
+RETRY_S = 5  # before asking Subfleet a second time for a run's state (`lost`), or trying a step again (`seal`)
 BEAT_S = 60  # between touches of MARKER while a pass holds it (`heartbeat`)
+LAST_CALL_TRIES = 3  # at the last call, tries of `i86 recover` and `i86 collect` while they fail (`seal`)
+RESERVE_S = 600  # at the last call, the time before GIVE_UP that steps before check leave for check, the audits and prereg
+COLLECT_FLOOR_S = 120  # at the last call, the time collect's first try gets even inside RESERVE_S: it copies the answers
+SESSIONS = "codex-sessions"  # as SESSIONS in src/i86/cli.py and FOLDER in scripts/audit_codex_sessions.py
+NOT_RUN = "not run: no time left"  # `run`'s stderr for a command it never started
 
 
 def utc(text: str) -> datetime:
@@ -158,8 +169,8 @@ def lost(give_up: datetime | None = None) -> tuple[list[str], list[str]]:
                 or meta.get("state") in FINISHED - {"lost"}):
             continue
         state = job_state(meta["job_id"], give_up)
-        if state is None:
-            if RETRY_S:
+        if state is None and (give_up is None or datetime.now(timezone.utc) < give_up):
+            if RETRY_S:  # past `give_up`, a second try would not run, so it costs no wait
                 time.sleep(RETRY_S)
             state = job_state(meta["job_id"], give_up)
         if state == "lost":
@@ -192,6 +203,32 @@ def unanswered() -> list[str]:
             continue
         why = meta.get("abandon_reason") or meta.get("collect_error")
         out.append(f"{label} ({meta.get('state') or 'no state'}{': ' + str(why)[:200] if why else ''})")
+    return out
+
+
+def served_by_codex(meta: dict) -> bool:
+    """Whether a Codex lane served the run, as `served_by_codex` in src/i86/runners.py decides."""
+    return str(meta.get("lane_id", "")).startswith("codex") or str(meta.get("model_served", "")).startswith("gpt")
+
+
+def unrecorded() -> list[str]:
+    """Each collected answer that a check or audit left without its record, with the steps that did:
+    `i86 check` writes response.json or problems.txt, `i86 audit` writes audit.json (a manual run gets
+    none), and the session audit writes codex-sessions/audit.json for a run a Codex lane served. A step
+    that crashes or is killed exits as one whose audit failed, but writes no record, and the analysis
+    leaves a run without its records out (`accepted_runs` in src/i86/cli.py)."""
+    out = []
+    for d in sorted(RUNS.iterdir()) if RUNS.exists() else []:
+        meta = read_meta(d)
+        if meta is None or not (d / "response.md").exists():
+            continue
+        steps = [step for step, needed, records in (
+            ("i86 check", True, ("response.json", "problems.txt")),
+            ("i86 audit", meta.get("backend") != "manual", ("audit.json",)),
+            ("the session audit", served_by_codex(meta), (f"{SESSIONS}/audit.json",)))
+            if needed and not any((d / record).exists() for record in records)]
+        if steps:
+            out.append(f"{d.name} ({', '.join(steps)})")
     return out
 
 
@@ -240,8 +277,8 @@ def run(cmd: list, timeout: float = 600) -> subprocess.CompletedProcess:
     the result has return code 124; with no time left (`timeout` 0 or less), it does not start."""
     argv = [str(c) for c in cmd]
     if timeout <= 0:
-        log(f"$ {' '.join(argv)} -> not run: no time left before the give-up time")
-        return subprocess.CompletedProcess(argv, 124, "", "not run: no time left")
+        log(f"$ {' '.join(argv)} -> {NOT_RUN}")
+        return subprocess.CompletedProcess(argv, 124, "", NOT_RUN)
     child = subprocess.Popen(argv, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                              start_new_session=True)
     try:
@@ -280,6 +317,15 @@ def seal(who: str, last_call: bool = False, give_up: datetime | None = None) -> 
             return limit
         return min(limit, (give_up - datetime.now(timezone.utc)).total_seconds())
 
+    def cut(limit: float, floor: float = 0) -> float:
+        """The time limit of a step before check: `left(limit)`, and at the last call no more than the
+        time left before `give_up` minus RESERVE_S, which check, the audits and prereg need, though
+        never less than `floor` while any time is left."""
+        if not last_call or give_up is None:
+            return left(limit)
+        remaining = (give_up - datetime.now(timezone.utc)).total_seconds()
+        return min(limit, remaining, max(remaining - RESERVE_S, floor))
+
     def mendable(step: str, proc: subprocess.CompletedProcess) -> bool:
         """Whether `step` timed out before the last call, which stops the pass; at the last call, a gap."""
         if proc.returncode != 124:
@@ -287,11 +333,32 @@ def seal(who: str, last_call: bool = False, give_up: datetime | None = None) -> 
         if not last_call:
             log(f"{step} timed out; not sealing")
             return True
-        gaps.append(f"{step} timed out, so its record is incomplete")
+        gaps.append(f"{step} had no time to run, so it left no record" if proc.stderr == NOT_RUN
+                    else f"{step} timed out, so its record is incomplete")
         return False
 
+    def tried(step: str, cmd: list, limit: float, failed, floor: float = 0) -> subprocess.CompletedProcess:
+        """Run `cmd` within `cut(limit, floor)`. At the last call, a failure here would stand for good,
+        so while `failed(proc)` it tries again, up to LAST_CALL_TRIES times in all, each within
+        `cut(limit)`, and none once that leaves no time. Each try is a fresh process whose `subfleet`
+        calls count no stall from an earlier one (src/i86/runners.py `subfleet`), so a Subfleet stall
+        that clears costs a try, not the answers."""
+        proc = run(cmd, timeout=cut(limit, floor))
+        tries = 1
+        while last_call and failed(proc) and tries < LAST_CALL_TRIES:
+            if RETRY_S:
+                time.sleep(RETRY_S)
+            budget = cut(limit)
+            if budget <= 0:
+                break
+            log(f"{step} failed at the last call; trying again ({tries + 1} of {LAST_CALL_TRIES})")
+            proc = run(cmd, timeout=budget)
+            tries += 1
+        return proc
+
     if not FOLDER.exists():
-        lost_runs, unknown = lost(give_up)
+        # At the last call, Subfleet's answers about the runs come by RESERVE_S before `give_up` or not at all
+        lost_runs, unknown = lost(give_up - timedelta(seconds=RESERVE_S) if last_call and give_up else give_up)
         if unknown:
             if not last_call:
                 log(f"Subfleet did not say whether {', '.join(unknown)} were lost; not sealing")
@@ -302,13 +369,20 @@ def seal(who: str, last_call: bool = False, give_up: datetime | None = None) -> 
                 gaps.append(f"Subfleet gave no state at the last call for {', '.join(done)}: abandoned, "
                             "with no answer collected")
         for label in lost_runs:
-            rec = run([I86, "recover", label], timeout=left(LIMIT["recover"]))  # changes nothing unless it recovers
-            if rec.returncode not in (0, 2):  # 2: nothing to recover; anything else may pass
+            # It changes nothing unless it recovers. Exit 2: nothing to recover; any other failure may pass.
+            rec = tried(f"recovering {label}", [I86, "recover", label], LIMIT["recover"],
+                        lambda proc: proc.returncode not in (0, 2))
+            if rec.returncode not in (0, 2):
                 if not last_call:
                     log(f"recovering {label} failed; not sealing")
                     return 1
-                gaps.append(f"recovering {label} failed, so its answer is not collected")
-        collect = run([I86, "collect"], timeout=left(LIMIT["collect"]))
+                gaps.append(f"recovering {label} {'had no time to run' if rec.stderr == NOT_RUN else 'failed'}, "
+                            "so its answer is not collected")
+        # Without collect the record holds no answers, so at the last call its first try gets
+        # COLLECT_FLOOR_S even inside the reserve.
+        collect = tried("collect", [I86, "collect"], LIMIT["collect"],
+                        lambda proc: proc.returncode != 0 and "still going" not in proc.stdout and bool(unfetched()),
+                        floor=COLLECT_FLOOR_S)
         if "still going" in collect.stdout:
             log("a run is still going: collect copied no answers; not sealing")
             return 1
@@ -317,8 +391,9 @@ def seal(who: str, last_call: bool = False, give_up: datetime | None = None) -> 
                 log("collect left a succeeded run's answer out; not sealing")
                 return 1
             missing = unfetched()
-            gaps.append(f"collect could not copy the answers of {', '.join(missing)} (see each run's collect_error)"
-                        if missing else f"collect exited {collect.returncode} (see the log)")
+            gaps.append("collect had no time to run, so it copied no answers" if collect.stderr == NOT_RUN
+                        else f"collect could not copy the answers of {', '.join(missing)} (see each run's "
+                             "collect_error)" if missing else f"collect exited {collect.returncode} (see the log)")
         # check exits 1 when an answer fails check, audit when an audit fails, and the session audit
         # (every thread behind each Sol run) likewise: those runs stay out of the pool.
         for step, cmd, limit in (("i86 check", [I86, "check"], LIMIT["check"]),
@@ -326,6 +401,12 @@ def seal(who: str, last_call: bool = False, give_up: datetime | None = None) -> 
                                  ("the session audit", [PYTHON, CODEX_AUDIT], LIMIT["audit"])):
             if mendable(step, run(cmd, timeout=left(limit))):
                 return 1
+        if missing := unrecorded():
+            if not last_call:
+                log(f"a check or audit left no record for {', '.join(missing)}; not sealing")
+                return 1
+            gaps.append(f"a check or audit left no record for {', '.join(missing)}, so the analysis leaves "
+                        "those runs out")
         if give_up is not None and datetime.now(timezone.utc) >= give_up:
             log("past the give-up time: a stamp now would not predate the results; not stamping")
             return 1
@@ -404,6 +485,8 @@ def main(argv=None) -> int:
     while True:
         now = datetime.now(timezone.utc)
         last_call = args.last_call if args.now else now >= give_up - LAST_CALL
+        # At the last call, the state queries and the guard pass leave RESERVE_S for the record (`seal`)
+        ask_by = give_up - timedelta(seconds=RESERVE_S) if last_call else give_up
         try:
             if sealed():
                 log(f"{rel(FOLDER)} exists, committed and pushed: already sealed")
@@ -414,14 +497,14 @@ def main(argv=None) -> int:
                     f"past the give-up time with {rel(FOLDER)} not pushed: stopping; push it by hand")
                 return 1
             if args.now or now >= act_after:
-                waiting = {} if FOLDER.exists() else pending(now, give_up)
+                waiting = {} if FOLDER.exists() else pending(now, ask_by)
                 if waiting and last_call:
                     # The guard should have ended them at KILL_AT: one pass of it now. A run whose state
                     # Subfleet still does not give holds nothing up: seal() abandons it and names it.
                     log("still going at the last call: " + ", ".join(f"{k}={v}" for k, v in waiting.items()))
                     run([PYTHON, GUARD, "--once"],
-                        timeout=min(LIMIT["guard"], (give_up - datetime.now(timezone.utc)).total_seconds()))
-                    waiting = {k: v for k, v in pending(give_up=give_up).items() if v != "unknown"}
+                        timeout=min(LIMIT["guard"], (ask_by - datetime.now(timezone.utc)).total_seconds()))
+                    waiting = {k: v for k, v in pending(give_up=ask_by).items() if v != "unknown"}
                 if waiting:
                     log("still going: " + ", ".join(f"{k}={v}" for k, v in waiting.items()))
                     if args.now:

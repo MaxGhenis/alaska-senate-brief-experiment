@@ -21,7 +21,10 @@ this script:
 
     .venv/bin/python scripts/audit_codex_sessions.py [LABEL ...] [--lanes DIR]
 
-It exits 1 if any thread fails the audit or any check above flags something.
+It exits 1 if any thread fails the audit or any check above flags something. A run's audit that stops
+on its data (a kept copy that differs from the lane's log, a log line that is not JSON) writes a failed
+audit.json naming the reason, and the script goes on to the next run; an OS error stops the script
+and writes nothing for that run, so a later pass can try again.
 """
 
 from __future__ import annotations
@@ -64,15 +67,21 @@ def header(path: Path) -> dict:
     return payload if isinstance(payload, dict) else {}
 
 
+HEADER_KEYS = ("id", "cwd", "source", "timestamp")  # all that `find_threads` reads of a header
+
+
 def read_headers(paths: list[Path]) -> list[tuple[Path, dict]]:
-    """Each readable log among `paths`, in order, with its header. Read once per invocation: the lanes
-    keep tens of thousands of logs, and every run's audit looks through all of them."""
+    """Each readable log among `paths`, in order, with the parts of its header `find_threads` reads.
+    Read once per invocation: the lanes keep tens of thousands of logs, and every run's audit looks
+    through all of them. A whole header averages 21 KB, mostly the thread's instructions, so keeping
+    every one would hold gigabytes."""
     out = []
     for path in paths:
         try:
-            out.append((path, header(path)))
+            meta = header(path)
         except (OSError, ValueError):
             continue
+        out.append((path, {key: meta[key] for key in HEADER_KEYS if key in meta}))
     return out
 
 
@@ -244,6 +253,25 @@ def audit_run(run_dir: Path, lanes: Path, lane_heads: list[tuple[Path, dict]] | 
     return report
 
 
+def stopped(run_dir: Path, exc: BaseException) -> dict:
+    """The record of a run's audit that stopped on what a later pass would meet again (a kept copy that
+    differs, a log that is not JSON lines): failed, with the reason, so the analysis leaves the run out
+    as one whose audit failed (`accepted_runs` in src/i86/cli.py) and the next run still gets audited.
+    Without a record, the run would hold up every seal pass until the last call (`unrecorded` in
+    scripts/seal.py)."""
+    try:
+        meta = json.loads((run_dir / "meta.json").read_text())
+        workdir = meta.get("workdir", "") if isinstance(meta, dict) else ""
+    except (OSError, ValueError, RecursionError):
+        workdir = ""
+    report = {"run": run_dir.name, "workdir": workdir, "threads": [], "missing": [], "orphans": [],
+              "flags": [f"the audit stopped: {exc}"], "web_calls": 0, "commands": 0, "violations": 0,
+              "suspect": 0, "passed": False, "error": f"{type(exc).__name__}: {exc}"}
+    (run_dir / FOLDER).mkdir(parents=True, exist_ok=True)
+    place(run_dir / FOLDER / "audit.json", lambda tmp: tmp.write_text(json.dumps(report, indent=1) + "\n"))
+    return report
+
+
 def codex_runs() -> list[Path]:
     """Collected runs a Codex lane served."""
     out = []
@@ -265,7 +293,12 @@ def main(argv: list[str] | None = None) -> int:
     lane_heads = read_headers(lane_logs(args.lanes)) if dirs else []
     worst = 0
     for d in dirs:
-        r = audit_run(d, args.lanes, lane_heads)
+        try:
+            r = audit_run(d, args.lanes, lane_heads)
+        except OSError:  # a disk or file a later pass may find whole: no record, so the seal tries again
+            raise
+        except (Exception, SystemExit) as exc:  # bad data, met again on every pass: a failed record
+            r = stopped(d, exc)
         helpers = sum(1 for t in r["threads"] if t["spawned_by"])
         print(f"{r['run']}: {'ok' if r['passed'] else 'FAILED'}; {len(r['threads'])} threads ({helpers} sub-agents), "
               f"{r['web_calls']} web calls, {r['commands']} commands, {r['violations']} violations, "

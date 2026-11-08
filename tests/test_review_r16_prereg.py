@@ -377,14 +377,31 @@ def test_mock_a_subfleet_error_during_recovery_is_left_for_a_later_try(area, mon
 
 # --- Findings 1, 3 and 8: scripts/seal.py ------------------------------------------------------------
 
+RECORDS = {"check": "response.json", "audit": "audit.json", "audit_codex_sessions.py": "codex-sessions/audit.json"}
+
+
 class Commands:
     """Every command scripts/seal.py runs, faked. Each returns `rc[step]` (0 unless set) and `out[step]`;
     `prereg` writes a manifest as `manifest` says: "fresh" lists every answer, "short" leaves one out,
-    "none" writes nothing, as when prereg dies before hashing. Its proof appears only when it exits 0."""
+    "none" writes nothing, as when prereg dies before hashing. Its proof appears only when it exits 0.
+    `i86 check`, `i86 audit` and the session audit write their record for each collected answer they
+    cover, as the real steps do, unless the test puts the step in `silent`, as when it crashes."""
 
     def __init__(self, root: Path):
         self.root, self.calls, self.rc, self.out, self.timeouts = root, [], {}, {}, {}
-        self.manifest, self.pushed = "fresh", False
+        self.manifest, self.pushed, self.silent = "fresh", False, set()
+
+    def record(self, step: str) -> None:
+        for d in sorted((self.root / "runs").glob("*")):
+            if not (d / "response.md").exists() or not (d / "meta.json").exists():
+                continue
+            meta = json.loads((d / "meta.json").read_text())
+            if (step == "audit" and meta.get("backend") == "manual") or (
+                    step == "audit_codex_sessions.py" and not runners.served_by_codex(meta)):
+                continue
+            path = d / RECORDS[step]
+            path.parent.mkdir(exist_ok=True)
+            path.write_text(json.dumps({"MOCK": step}) + "\n")
 
     def __call__(self, cmd, timeout=600):
         cmd = [str(c) for c in cmd]
@@ -394,6 +411,8 @@ class Commands:
         step = (cmd[1] if cmd[0].endswith("/i86") else Path(cmd[1]).name if cmd[0].endswith("/python")
                 else " ".join(cmd[:2]))
         rc = self.rc.get(step, 0)
+        if step in RECORDS and step not in self.silent:
+            self.record(step)
         if step == "prereg":
             sums, proof = self.root / "prereg" / "SHA256SUMS", self.root / "prereg" / "SHA256SUMS.ots"
             proof.unlink(missing_ok=True)
