@@ -1,0 +1,23 @@
+{
+ "events": 34,
+ "tool_calls": 12,
+ "web_calls": 12,
+ "urls": [
+  "https://alaskapublic.org/news/politics/elections/2026-11-06/4-interesting-things-weve-learned-from-alaska-ballot-data",
+  "https://fairvote.org/how-will-remaining-ballots-affect-alaskas-statewide-elections/",
+  "https://www.ap.org/the-definitive-source/behind-the-news/calling-control-of-congress-in-the-2026-midterm-elections/",
+  "https://www.bls.gov/news.release/laus.t01.htm",
+  "https://www.democracydocket.com/news-alerts/new-data-suggests-peltola-likely-to-win-alaska-voters-not-confused-by-2-dan-sullivans/",
+  "https://www.elections.alaska.gov/election-results/",
+  "search: ",
+  "search: 'Alaska'",
+  "search: 'repeal'",
+  "search: Alaska November 2026 \"remaining\" \"absentee\" \"Peltola\" ballots estimate ...",
+  "search: Alaska November 2026 Peltola Sullivan \"remaining\" ballots \"55\" ...",
+  "search: Alaska election November 2026 Peltola Sullivan November 8 2026 absentee ballots ..."
+ ],
+ "violations": [],
+ "suspect": [],
+ "local_calls": [],
+ "passed": true
+}

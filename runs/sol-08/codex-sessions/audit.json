@@ -1,0 +1,180 @@
+{
+ "run": "sol-08",
+ "workdir": "/Users/maxghenis/.cache/aksen-work/sol-08",
+ "threads": [
+  {
+   "thread_id": "01a1bb31-faec-7e52-aeab-dac310a4186b",
+   "spawned_by": null,
+   "agent_path": null,
+   "started": "2026-11-08T12:46:17.325Z",
+   "file": "codex-sessions/rollout-2026-11-08T07-46-17-01a1bb31-faec-7e52-aeab-dac310a4186b.jsonl",
+   "sha256": "b15885098c824503102f23ed9ebaf1963e0a0c89860122dac9e1060b3fb59f6d",
+   "items": {
+    "UserMessage": 1,
+    "AgentMessage": 5,
+    "SubAgentActivity": 9,
+    "Extension:web.search": 12,
+    "Reasoning": 28
+   },
+   "script_tools": {
+    "web__run": 12
+   },
+   "functions": {
+    "spawn_agent": 3,
+    "send_message": 1,
+    "followup_task": 1
+   },
+   "audit": {
+    "events": 45,
+    "tool_calls": 12,
+    "web_calls": 12,
+    "urls": [
+     "https://alaskapublic.org/news/politics/elections/2026-11-06/4-interesting-things-weve-learned-from-alaska-ballot-data",
+     "https://fairvote.org/how-will-remaining-ballots-affect-alaskas-statewide-elections/",
+     "https://www.ap.org/the-definitive-source/behind-the-news/calling-control-of-congress-in-the-2026-midterm-elections/",
+     "https://www.bls.gov/news.release/laus.t01.htm",
+     "https://www.democracydocket.com/news-alerts/new-data-suggests-peltola-likely-to-win-alaska-voters-not-confused-by-2-dan-sullivans/",
+     "https://www.elections.alaska.gov/election-results/",
+     "search: ",
+     "search: 'Alaska'",
+     "search: 'repeal'",
+     "search: Alaska November 2026 \"remaining\" \"absentee\" \"Peltola\" ballots estimate ...",
+     "search: Alaska November 2026 Peltola Sullivan \"remaining\" ballots \"55\" ...",
+     "search: Alaska election November 2026 Peltola Sullivan November 8 2026 absentee ballots ..."
+    ],
+    "violations": [],
+    "suspect": [],
+    "local_calls": [],
+    "passed": true
+   }
+  },
+  {
+   "thread_id": "01a1bb32-2a61-70b3-9f18-6f23475356a0",
+   "spawned_by": "01a1bb31-faec-7e52-aeab-dac310a4186b",
+   "agent_path": "/root/economy",
+   "started": "2026-11-08T12:46:29.473Z",
+   "file": "codex-sessions/rollout-2026-11-08T07-46-29-01a1bb32-2a61-70b3-9f18-6f23475356a0.jsonl",
+   "sha256": "924d190682824d759b48b37a2b5c17108d136c379b6d8c3845cd6a90ad60049a",
+   "items": {
+    "Extension:web.search": 7,
+    "Reasoning": 9,
+    "SubAgentActivity": 3,
+    "AgentMessage": 2
+   },
+   "script_tools": {
+    "web__run": 7
+   },
+   "functions": {
+    "send_message": 3
+   },
+   "audit": {
+    "events": 18,
+    "tool_calls": 7,
+    "web_calls": 7,
+    "urls": [
+     "https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?f=M&n=PET&s=MCRFPAK2",
+     "https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=MCRFPAK2&f=M",
+     "https://www.eia.gov/outlooks/steo/archives/Oct26.pdf",
+     "search: \"2026 Third Quarter Report\" \"Santos\" \"22 October\" ...",
+     "search: Alaska oil October 2026 Pikka first oil production EIA ...",
+     "search: site.bls.gov Alaska unemployment September 2026 seasonally adjusted October 2026 ...",
+     "search: site.eia.gov \"October 2026\" \"Alaska\" \"production\" \"2027\" ..."
+    ],
+    "violations": [],
+    "suspect": [],
+    "local_calls": [],
+    "passed": true
+   }
+  },
+  {
+   "thread_id": "01a1bb32-4091-76f1-89f4-47938b866517",
+   "spawned_by": "01a1bb31-faec-7e52-aeab-dac310a4186b",
+   "agent_path": "/root/legal",
+   "started": "2026-11-08T12:46:35.172Z",
+   "file": "codex-sessions/rollout-2026-11-08T07-46-35-01a1bb32-4091-76f1-89f4-47938b866517.jsonl",
+   "sha256": "ccc783eb5b62bb4d873426099207f87014378c09f45cb9ee047b5b02fc7d4a19",
+   "items": {
+    "Extension:web.search": 10,
+    "Reasoning": 12,
+    "SubAgentActivity": 5,
+    "AgentMessage": 1
+   },
+   "script_tools": {
+    "web__run": 10
+   },
+   "functions": {
+    "send_message": 5
+   },
+   "audit": {
+    "events": 23,
+    "tool_calls": 10,
+    "web_calls": 10,
+    "urls": [
+     "https://www.akleg.gov/statutesPDF/Title-15.pdf",
+     "https://www.democracydocket.com/cases/alaska-u-s-senate-election-certification-challenge-doj/",
+     "search: \"26-7304\" Alaska appeal 2026 ...",
+     "search: \"Alaska\" \"2026\" \"Sullivan\" \"appeal\" \"November 8\" ...",
+     "search: \"Department of Law Responds\" \"Peltola\" \"2026\" ...",
+     "search: \"United States v. State of Alaska\" \"2026\" \"clearinghouse\" ...",
+     "search: 'standing'",
+     "search: Alaska 2004 recount presidential election 25000 candidates request Green Libertarian 15.20.430 ...",
+     "search: site.akleg.gov AS 15.20.430 recount .5 percent ...",
+     "search: site.cnn.com 2026/11/01 Sullivan \"accept\" election results Tapper ..."
+    ],
+    "violations": [],
+    "suspect": [],
+    "local_calls": [],
+    "passed": true
+   }
+  },
+  {
+   "thread_id": "01a1bb32-5dcb-7061-b0a6-e955e9645396",
+   "spawned_by": "01a1bb31-faec-7e52-aeab-dac310a4186b",
+   "agent_path": "/root/senate",
+   "started": "2026-11-08T12:46:42.638Z",
+   "file": "codex-sessions/rollout-2026-11-08T07-46-42-01a1bb32-5dcb-7061-b0a6-e955e9645396.jsonl",
+   "sha256": "08b9eeb135401fb7c1be964736aa78eec2c1abe860e3fa6a8eff611ba64995e7",
+   "items": {
+    "Extension:web.search": 8,
+    "SubAgentActivity": 3,
+    "Reasoning": 7,
+    "AgentMessage": 1
+   },
+   "script_tools": {
+    "web__run": 9
+   },
+   "functions": {
+    "send_message": 3
+   },
+   "audit": {
+    "events": 16,
+    "tool_calls": 8,
+    "web_calls": 8,
+    "urls": [
+     "search: \"Dan Sullivan\" \"2026\" \"Hegseth\" secretary replacement ...",
+     "search: \"Dan Sullivan\" \"Secretary of Defense\" \"shortlist\" ...",
+     "search: \"Fetterman\" \"November 2026\" \"Republican\" switch ...",
+     "search: \"Mississippi\" \"Colom\" \"November 8, 2026\" votes ...",
+     "search: \"Why it's still too early to call\" \"Mississippi\" \"2026\" Hinds Madison ...",
+     "search: 2026 Senate election results November 8 2026 Democrats Senate control ...",
+     "search: Dan Sullivan biography assistant secretary state Alaska attorney general 2026 ...",
+     "search: site.whitehouse.gov \"David Perdue\" \"China\" \"December\" \"2024\" ..."
+    ],
+    "violations": [],
+    "suspect": [],
+    "local_calls": [],
+    "passed": true
+   }
+  }
+ ],
+ "missing": [],
+ "flags": [
+  "rollout-2026-11-08T07-46-17-01a1bb31-faec-7e52-aeab-dac310a4186b.jsonl line 204: an exec script reaches past its tools: 'const bins=[\"dem_to_48.5\",\"dem_48.5_49.0\",\"dem_49.0_49.5\",\"dem_49.5_50.0\",\"dem_50.0_50.5\",\"dem_50.5_51.0\",\"dem_51.0_51.5\",\"dem_over_51.5\"];\\nconst qs=[\"p05\",\"p25\",\"p50\",\"p75\",\"p95\"];\\nconst q=a=>Object.'"
+ ],
+ "orphans": [],
+ "web_calls": 37,
+ "commands": 0,
+ "violations": 0,
+ "suspect": 0,
+ "passed": false
+}

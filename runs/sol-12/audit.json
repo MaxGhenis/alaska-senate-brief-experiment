@@ -1,0 +1,22 @@
+{
+ "events": 30,
+ "tool_calls": 11,
+ "web_calls": 11,
+ "urls": [
+  "https://fairvote.org/results-and-analysis-from-alaskas-2026-elections/",
+  "https://www.bls.gov/news.release/archives/laus_10202026.htm",
+  "https://www.democracydocket.com/news-alerts/new-data-suggests-peltola-likely-to-win-alaska-voters-not-confused-by-2-dan-sullivans/",
+  "https://www.nytimes.com/2026/11/05/us/alaska-ranked-choice-data-sullivan-peltola.html",
+  "https://www.sullivan.senate.gov/about/bio/",
+  "search: ",
+  "search: \"Sullivan\" \"November 6, 2026\" \"memo\" early voters ...",
+  "search: Alaska \"2026\" \"Measure 2\" \"absentee\" \"early\" \"November 6\" ...",
+  "search: Alaska 2026 Senate November 8 2026 Peltola Sullivan outstanding ballots election results",
+  "search: site.alaskapublic.org 2026 November Peltola Sullivan ranked choice absentee votes governor Kreiss-Tomkins ...",
+  "search: site.alaskapublic.org/ \"2026\" \"Kreiss-Tomkins\" \"ranked\" November 4 ..."
+ ],
+ "violations": [],
+ "suspect": [],
+ "local_calls": [],
+ "passed": true
+}

@@ -1,0 +1,10 @@
+[
+ {
+  "repair": "dropped_key",
+  "where": "ak_oil.forecasts",
+  "key": "dem_over_51.5_placeholder_removed",
+  "value": null,
+  "block": 1,
+  "as_written_block": 1
+ }
+]

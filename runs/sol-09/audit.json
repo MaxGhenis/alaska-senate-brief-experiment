@@ -1,0 +1,22 @@
+{
+ "events": 32,
+ "tool_calls": 12,
+ "web_calls": 12,
+ "urls": [
+  "https://alaskapublic.org/news/politics/elections/2026-11-04/6-takeaways-from-alaskas-election",
+  "https://apnews.com/article/bfe5baf0dd3f26ddf0ca9b844400515d",
+  "https://fairvote.org/results-and-analysis-from-alaskas-2026-elections/",
+  "https://www.alaskasnewssource.com/2026/11/06/peltola-sullivan-campaigns-project-wins-while-quarter-ballots-are-outstanding/?outputType=amp",
+  "https://www.elections.alaska.gov/enr/26GENR/",
+  "search: ",
+  "search: \"Peltola\" \"2026\" \"November 5\" \"remaining\" ...",
+  "search: \"Sullivan\" \"Kelly\" \"Defense\" \"November\" \"2026\" ...",
+  "search: Alaska Peltola Sullivan November 7 2026 remaining ballots ranked choice 860 ...",
+  "search: Alaska Senate November 2026 Peltola Sullivan November 8 2026 vote count ...",
+  "search: site.elections.alaska.gov \"recount\" \"0.5\" \"two\" ..."
+ ],
+ "violations": [],
+ "suspect": [],
+ "local_calls": [],
+ "passed": true
+}

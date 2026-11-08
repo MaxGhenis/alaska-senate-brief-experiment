@@ -1,0 +1,25 @@
+{
+ "events": 92,
+ "tool_calls": 14,
+ "web_calls": 14,
+ "urls": [
+  "https://en.wikipedia.org/wiki/2026_United_States_Senate_election_in_Alaska",
+  "https://fairvote.org/how-will-remaining-ballots-affect-alaskas-statewide-elections/",
+  "https://www.adn.com/politics/2026/11/06/like-in-past-elections-alaska-is-still-counting-ballots-when-will-we-know-who-won/",
+  "https://www.democracydocket.com/news-alerts/new-data-suggests-peltola-likely-to-win-alaska-voters-not-confused-by-2-dan-sullivans/",
+  "search: Alaska Ballot Measure 2 repeal ranked choice 2026 results Kreiss-Tomkins Wilson governor",
+  "search: Alaska North Slope oil production 2026 Pikka ramp-up barrels per day record month",
+  "search: Alaska Senate Peltola Sullivan absentee ballots count results",
+  "search: Alaska Senate Peltola odds Polymarket OR Kalshi November 2026",
+  "search: Alaska crude oil production 2026 EIA Pikka thousand barrels per day",
+  "search: Alaska unemployment rate September 2026 seasonally adjusted Department of Labor",
+  "search: Alaska unemployment rate seasonally adjusted 2026",
+  "search: Democrats Senate majority 2026 seats flipped Mississippi Senate race uncalled count",
+  "search: EIA Petroleum Supply Monthly Alaska field production crude oil August 2026",
+  "search: Peltola Sullivan memo remaining ballots ranked choice second choice Heikes New York Times analysis Alaska"
+ ],
+ "violations": [],
+ "suspect": [],
+ "local_calls": [],
+ "passed": true
+}

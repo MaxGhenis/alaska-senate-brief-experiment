@@ -1,0 +1,11 @@
+[
+ {
+  "repair": "trailing_comma",
+  "count": 1,
+  "before": [
+   ", \"p50\": 56.2, \"p75\": 57.1, \"p95\": 58.3},"
+  ],
+  "block": 1,
+  "as_written_block": null
+ }
+]

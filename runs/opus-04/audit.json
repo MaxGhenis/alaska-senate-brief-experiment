@@ -1,0 +1,26 @@
+{
+ "events": 113,
+ "tool_calls": 15,
+ "web_calls": 15,
+ "urls": [
+  "https://adn.com/politics/2026/11/05/trump-weighs-in-on-alaskas-tight-us-senate-race-as-thousands-of-ballots-are-yet-to-be-tallied",
+  "https://alaskabeacon.com/?p=30637",
+  "https://fairvote.org/results-and-analysis-from-alaskas-2026-elections/",
+  "https://www.democracydocket.com/news-alerts/new-data-suggests-peltola-likely-to-win-alaska-voters-not-confused-by-2-dan-sullivans/",
+  "https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=MCRFPAK2&f=M",
+  "search: Alaska North Slope oil production October 2026 Pikka barrels per day",
+  "search: Alaska Peltola Sullivan ranked choice second choices Heikes Daniel Sullivan Jr. analysis",
+  "search: Alaska Senate Peltola Sullivan vote count absentee ballots November 2026",
+  "search: Alaska Senate race Polymarket OR Kalshi odds Peltola November 2026",
+  "search: Alaska unemployment rate seasonally adjusted September 2026",
+  "search: EIA Alaska crude oil production 2026 thousand barrels per day Pikka",
+  "search: EIA petroleum supply monthly Alaska field production August 2026",
+  "search: New York Times analysis Alaska Peltola lead expected to grow mail ballots Sullivan",
+  "search: Ninth Circuit United States v. Alaska Sullivan certification appeal",
+  "search: Senate balance of power 2026 midterms Democrats seats Mississippi Senate race uncalled Osborn caucus"
+ ],
+ "violations": [],
+ "suspect": [],
+ "local_calls": [],
+ "passed": true
+}

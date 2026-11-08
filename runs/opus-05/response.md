@@ -1,0 +1,233 @@
+I found that Peltola is the clear favourite to win once the remaining ballots and the ranked-choice transfers are counted. Markets put her at 97–98%, and the results below centre her final share near 51.2%.
+
+```json
+{
+ "forecaster": {
+  "model": "claude-opus-5-5",
+  "prior_context": "none",
+  "notes": "I ran in plan mode with no file edits; all research was read-only web search and fetch. Peltola's final share is centred near 51.2%, built as follows. The Sullivan campaign's ranked-choice simulation on 204,530 ballots gives Sullivan +328. Its claim that the remaining early and absentee ballots will favour Sullivan is not credible. About 10,800 rural ballots counted by hand are left out of that simulation and should lean to Peltola. About 47,000 early and absentee ballots are in hand, plus late mail; per Peltola's campaign, the early and mail ballots counted so far ran about 56.6% to her. Sullivan's own memo says he needs about 49.5% of the remaining two-way vote. Kalshi and Polymarket put Peltola at about 97-98% on Nov 6. The other quantities are tied to Peltola's share by linear relationships I estimated."
+ },
+ "research_summary": "Election-night count: Peltola leads Sullivan by 637 first-choice votes (48.02% to 47.72%), with about 60-75k ballots outstanding. Most are early and mail ballots, which have leaned to Peltola (about 56.6% by her campaign's count), plus about 10.8k rural ballots counted by hand. Ranked-choice transfers favour Sullivan by a net of about 860-1,400 votes on the ballots counted so far: the Beacon analysis put Sullivan's transfers at +2,728 and Peltola's at +1,868, and the Sullivan memo shows a simulated Sullivan lead of 328. A New York Times analysis says Sullivan may not recover even half a point in the tabulation. Markets (Nov 6): Polymarket 98c and Kalshi 96.9c for Peltola. Democrats won the Senate majority, with at least 54 seats as of Nov 4 and Mississippi (Colom about 94% in markets) and Alaska uncalled. The DOJ certification suit was dismissed for lack of standing and is on appeal. Peltola's campaign has sued for absentee rejection records, and the Sullivan campaign is pressing a 'cheating scandal' claim about the second Dan Sullivan on the ballot. BLS has Alaska's seasonally adjusted unemployment at 4.3% for September 2026 (preliminary). EIA has Alaska crude production at 427 kb/d for August 2026; Pikka started producing in May 2026 and is ramping toward an 80 kb/d plateau.",
+ "nodes": {
+  "dem_share": {
+   "forecasts": {
+    "all": {
+     "le_48.5": 0.005,
+     "le_49": 0.01,
+     "le_49.5": 0.02,
+     "le_50": 0.045,
+     "le_50.5": 0.14,
+     "le_51": 0.36,
+     "le_51.5": 0.62
+    }
+   },
+   "reasoning": "The ranked-choice tabulation of ballots counted so far roughly ties the race, about 49.9-50.0% for Peltola. The roughly 10.8k rural ballots counted by hand and the 50-60k outstanding early and absentee ballots have run about 55-57% for Peltola, which should add a net 5-8k votes and centre her share near 51.2%. Markets put a Sullivan win at about 2-3%. I widen that slightly to 4.5% because the transfers and the lean of late ballots are uncertain.",
+   "sources": [
+    "https://www.alaskasnewssource.com/2026/11/06/peltola-sullivan-campaigns-project-wins-while-quarter-ballots-are-outstanding/",
+    "https://thealaskastory.com/sullivan-campaign-sees-328-vote-path-to-victory-as-peltola-leads-first-choices/",
+    "https://alaskabeacon.com/2026/11/04/ranked-choice-voting-may-help-republican-us-sen-dan-sullivan-analysis-finds/",
+    "https://www.yahoo.com/news/politics/articles/mary-peltola-appears-likely-defeat-181521586.html",
+    "https://www.democracydocket.com/news-alerts/new-data-suggests-peltola-likely-to-win-alaska-voters-not-confused-by-2-dan-sullivans/",
+    "https://www.actionnetwork.com/news/alaska-senate-race-2026-midterm-results-peltola-vs-sullivan-polls-live-kalshi-polymarket-alaska-senate-race-prices-nov-6",
+    "https://dansullivanforalaska.com/wp-content/uploads/State-of-the-Race-Senator-Sullivan-Wins-Once-Ranked-Choice-Votes-Are-Counted.pdf"
+   ]
+  },
+  "bm2_yes_share": {
+   "forecasts": {
+    "dem_to_48.5": {"p05": 47.9, "p25": 48.5, "p50": 48.9, "p75": 49.3, "p95": 49.9},
+    "dem_48.5_49.0": {"p05": 47.6, "p25": 48.2, "p50": 48.6, "p75": 49.0, "p95": 49.6},
+    "dem_49.0_49.5": {"p05": 47.3, "p25": 47.9, "p50": 48.3, "p75": 48.7, "p95": 49.3},
+    "dem_49.5_50.0": {"p05": 47.0, "p25": 47.6, "p50": 48.0, "p75": 48.4, "p95": 49.0},
+    "dem_50.0_50.5": {"p05": 46.7, "p25": 47.3, "p50": 47.7, "p75": 48.1, "p95": 48.7},
+    "dem_50.5_51.0": {"p05": 46.4, "p25": 47.0, "p50": 47.4, "p75": 47.8, "p95": 48.4},
+    "dem_51.0_51.5": {"p05": 46.0, "p25": 46.6, "p50": 47.0, "p75": 47.4, "p95": 48.0},
+    "dem_over_51.5": {"p05": 45.3, "p25": 46.0, "p50": 46.5, "p75": 47.0, "p95": 47.7}
+   },
+   "reasoning": "On the count so far Yes stands at 48.1%. In 2024, late-counted ballots pushed the similar repeal measure about 1-1.5 points toward No, and this year's outstanding ballots lean the same way, so Yes should end near 47% if Peltola finishes near 51%. Yes falls by about 0.6-0.7 points for each point of Peltola share. The 49.5-50.0 and 50.0-50.5 ranges differ only by that slope.",
+   "sources": [
+    "https://www.alaskasnewssource.com/2026/11/06/peltola-sullivan-campaigns-project-wins-while-quarter-ballots-are-outstanding/",
+    "https://www.elections.alaska.gov/enr/26GENR/"
+   ]
+  },
+  "gov_dem_share": {
+   "forecasts": {
+    "dem_to_48.5": {"p05": 48.8, "p25": 49.9, "p50": 50.6, "p75": 51.3, "p95": 52.4},
+    "dem_48.5_49.0": {"p05": 49.3, "p25": 50.3, "p50": 51.0, "p75": 51.7, "p95": 52.8},
+    "dem_49.0_49.5": {"p05": 49.7, "p25": 50.7, "p50": 51.4, "p75": 52.1, "p95": 53.2},
+    "dem_49.5_50.0": {"p05": 50.2, "p25": 51.2, "p50": 51.9, "p75": 52.6, "p95": 53.7},
+    "dem_50.0_50.5": {"p05": 50.7, "p25": 51.7, "p50": 52.4, "p75": 53.1, "p95": 54.2},
+    "dem_50.5_51.0": {"p05": 51.2, "p25": 52.2, "p50": 52.9, "p75": 53.6, "p95": 54.7},
+    "dem_51.0_51.5": {"p05": 51.7, "p25": 52.7, "p50": 53.4, "p75": 54.1, "p95": 55.2},
+    "dem_over_51.5": {"p05": 52.3, "p25": 53.4, "p50": 54.2, "p75": 55.0, "p95": 56.3}
+   },
+   "reasoning": "Kreiss-Tomkins has 49.1% of first choices and should rise toward 50-51% as late ballots are counted. Wilson gains most of the Bronson and Taylor votes, but some of those ballots exhaust, so Kreiss-Tomkins's final-round share should run about 2 points above Peltola's. The main uncertainty within a range is how many ballots exhaust.",
+   "sources": [
+    "https://www.alaskasnewssource.com/2026/11/06/peltola-sullivan-campaigns-project-wins-while-quarter-ballots-are-outstanding/",
+    "https://www.fox10tv.com/2026/11/05/alaskans-wait-more-votes-us-senate-governors-races-both-could-go-ranked-tabulations/"
+   ]
+  },
+  "recount": {
+   "forecasts": {
+    "dem_to_48.5": {"p": 0.05},
+    "dem_48.5_49.0": {"p": 0.15},
+    "dem_49.0_49.5": {"p": 0.4},
+    "dem_49.5_50.0": {"p": 0.85},
+    "dem_50.0_50.5": {"p": 0.85},
+    "dem_50.5_51.0": {"p": 0.45},
+    "dem_51.0_51.5": {"p": 0.18},
+    "dem_over_51.5": {"p": 0.08}
+   },
+   "reasoning": "Alaska pays for a recount when the margin is within 0.5% of the votes cast, which is roughly a share of 49.75-50.25%. Losers usually request one only when the race is very close. Requests are a bit more likely if Sullivan loses than if Peltola does, because his campaign and the DOJ are already pushing fraud and voter-confusion claims.",
+   "sources": [
+    "https://www.elections.alaska.gov/doc/mp/2026/MediaPacket-2026-General.%20V3.pdf",
+    "https://www.alaskasnewssource.com/2026/11/06/peltola-sullivan-campaigns-project-wins-while-quarter-ballots-are-outstanding/"
+   ]
+  },
+  "contest": {
+   "forecasts": {
+    "dem_to_48.5": {"p": 0.05},
+    "dem_48.5_49.0": {"p": 0.08},
+    "dem_49.0_49.5": {"p": 0.12},
+    "dem_49.5_50.0": {"p": 0.25},
+    "dem_50.0_50.5": {"p": 0.45},
+    "dem_50.5_51.0": {"p": 0.32},
+    "dem_51.0_51.5": {"p": 0.22},
+    "dem_over_51.5": {"p": 0.14}
+   },
+   "reasoning": "Election contests are rare in Alaska, though Joe Miller filed one in 2010. Here the claim that the second Dan Sullivan was planted to confuse voters gives Sullivan's side a ready argument for contesting a Peltola win, and it remains available even if she wins by a comfortable margin. If Peltola loses narrowly, her side might contest over rejected absentee ballots.",
+   "sources": [
+    "https://www.alaskasnewssource.com/2026/11/06/peltola-sullivan-campaigns-project-wins-while-quarter-ballots-are-outstanding/",
+    "https://thehill.com/homenews/campaign/6205934-peltola-campaign-alaska-ballot-lawsuit/"
+   ]
+  },
+  "court_order": {
+   "forecasts": {
+    "dem_to_48.5": {"p": 0.01},
+    "dem_48.5_49.0": {"p": 0.015},
+    "dem_49.0_49.5": {"p": 0.02},
+    "dem_49.5_50.0": {"p": 0.03},
+    "dem_50.0_50.5": {"p": 0.07},
+    "dem_50.5_51.0": {"p": 0.05},
+    "dem_51.0_51.5": {"p": 0.04},
+    "dem_over_51.5": {"p": 0.03}
+   },
+   "reasoning": "Courts very rarely bar certification. The DOJ suit was dismissed for lack of standing, and a Ninth Circuit stay before about Nov 25 is unlikely. A narrow Peltola win, with a recount and a contest under way, carries the most risk that some court briefly delays certification.",
+   "sources": [
+    "https://www.democracydocket.com/cases/alaska-u-s-senate-election-certification-challenge-doj/"
+   ]
+  },
+  "winner_sworn": {
+   "forecasts": {
+    "dem_to_48.5": {"p": 0.97},
+    "dem_48.5_49.0": {"p": 0.96},
+    "dem_49.0_49.5": {"p": 0.95},
+    "dem_49.5_50.0": {"p": 0.92},
+    "dem_50.0_50.5": {"p": 0.88},
+    "dem_50.5_51.0": {"p": 0.93},
+    "dem_51.0_51.5": {"p": 0.95},
+    "dem_over_51.5": {"p": 0.96}
+   },
+   "reasoning": "Certified winners are normally sworn in on Jan 3. Democrats will control the new Senate, so a Peltola win is unlikely to be blocked there. The remaining risks are delays from a recount or contest, or the Governor holding back the certificate amid the DOJ fight, and those risks are highest for a narrow Peltola win.",
+   "sources": [
+    "https://aljazeera.com/news/2026/11/4/democratic-party-flips-us-senate-in-2026-midterm-elections"
+   ]
+  },
+  "peltola_senator": {
+   "forecasts": {
+    "dem_to_48.5": {"p": 0.005},
+    "dem_48.5_49.0": {"p": 0.01},
+    "dem_49.0_49.5": {"p": 0.015},
+    "dem_49.5_50.0": {"p": 0.03},
+    "dem_50.0_50.5": {"p": 0.9},
+    "dem_50.5_51.0": {"p": 0.94},
+    "dem_51.0_51.5": {"p": 0.96},
+    "dem_over_51.5": {"p": 0.97}
+   },
+   "reasoning": "This question follows the certified winner. Because the ranges are set by the certified result after any recount, a reversal is possible only through a contest or a refusal to seat, which is very unlikely. A narrow Peltola win carries a small risk that seating is delayed past Feb 1.",
+   "sources": [
+    "https://aljazeera.com/news/2026/11/4/democratic-party-flips-us-senate-in-2026-midterm-elections"
+   ]
+  },
+  "dem_caucus": {
+   "forecasts": {
+    "dem_to_48.5": {"p05": 54, "p25": 55, "p50": 55, "p75": 55, "p95": 55},
+    "dem_48.5_49.0": {"p05": 54, "p25": 55, "p50": 55, "p75": 55, "p95": 55},
+    "dem_49.0_49.5": {"p05": 54, "p25": 55, "p50": 55, "p75": 55, "p95": 55},
+    "dem_49.5_50.0": {"p05": 54, "p25": 55, "p50": 55, "p75": 55, "p95": 55},
+    "dem_50.0_50.5": {"p05": 54, "p25": 55, "p50": 56, "p75": 56, "p95": 56},
+    "dem_50.5_51.0": {"p05": 55, "p25": 56, "p50": 56, "p75": 56, "p95": 56},
+    "dem_51.0_51.5": {"p05": 55, "p25": 56, "p50": 56, "p75": 56, "p95": 56},
+    "dem_over_51.5": {"p05": 55, "p25": 56, "p50": 56, "p75": 56, "p95": 56}
+   },
+   "reasoning": "AP had Democrats at 54 seats with Mississippi and Alaska uncalled, and markets put Colom at about 94% in Mississippi. That gives 56 if Peltola wins and 55 if she loses. The low tails cover a Mississippi loss, a brief vacancy, or a Peltola seating delay past Feb 1.",
+   "sources": [
+    "https://aljazeera.com/news/2026/11/4/democratic-party-flips-us-senate-in-2026-midterm-elections",
+    "https://dailymontanan.com/?p=39937",
+    "https://defirate.com/news/colom-peltola-senate-races-uncalled/"
+   ]
+  },
+  "sullivan_post": {
+   "forecasts": {
+    "dem_to_48.5": {"p": 0.02},
+    "dem_48.5_49.0": {"p": 0.02},
+    "dem_49.0_49.5": {"p": 0.02},
+    "dem_49.5_50.0": {"p": 0.02},
+    "dem_50.0_50.5": {"p": 0.18},
+    "dem_50.5_51.0": {"p": 0.22},
+    "dem_over_51.5": {"p": 0.24},
+    "dem_51.0_51.5": {"p": 0.23}
+   },
+   "reasoning": "Senators who lose and are loyal to the President sometimes get appointments, as Perdue and Loeffler did. Sullivan, a Marine reservist and former Assistant Secretary of State, is plausible for an ambassadorship or a defence post. I give about 20-25% within seven months if he loses, a little lower if a contest drags on, and near zero if he wins.",
+   "sources": [
+    "https://www.alaskasnewssource.com/2026/11/06/peltola-sullivan-campaigns-project-wins-while-quarter-ballots-are-outstanding/"
+   ]
+  },
+  "ak_unemployment": {
+   "baseline": {
+    "value": 4.3,
+    "as_of": "2026-09",
+    "source": "BLS Local Area Unemployment Statistics, preliminary September 2026 (bls.gov/web/laus/laumstrk.htm)"
+   },
+   "forecasts": {
+    "dem_to_48.5": {"p05": 3.8, "p25": 4.1, "p50": 4.3, "p75": 4.5, "p95": 4.9},
+    "dem_48.5_49.0": {"p05": 3.8, "p25": 4.1, "p50": 4.3, "p75": 4.5, "p95": 4.9},
+    "dem_49.0_49.5": {"p05": 3.8, "p25": 4.1, "p50": 4.3, "p75": 4.5, "p95": 4.9},
+    "dem_49.5_50.0": {"p05": 3.8, "p25": 4.1, "p50": 4.3, "p75": 4.5, "p95": 4.9},
+    "dem_50.0_50.5": {"p05": 3.8, "p25": 4.1, "p50": 4.3, "p75": 4.5, "p95": 4.9},
+    "dem_50.5_51.0": {"p05": 3.8, "p25": 4.1, "p50": 4.3, "p75": 4.5, "p95": 4.9},
+    "dem_51.0_51.5": {"p05": 3.8, "p25": 4.1, "p50": 4.3, "p75": 4.5, "p95": 4.9},
+    "dem_over_51.5": {"p05": 3.8, "p25": 4.1, "p50": 4.3, "p75": 4.5, "p95": 4.9}
+   },
+   "reasoning": "Alaska's seasonally adjusted rate is smoothed and moves slowly. It was 4.3% in August and September 2026. The Senate result has essentially no effect on December unemployment, so the forecast is the same at every range.",
+   "sources": [
+    "https://www.bls.gov/web/laus/laumstrk.htm",
+    "https://dol.alaska.gov/news/2026/news26-16.htm"
+   ]
+  },
+  "ak_oil": {
+   "baseline": {
+    "value": 427,
+    "as_of": "2026-08",
+    "source": "EIA Petroleum Supply Monthly, series MCRFPAK2"
+   },
+   "forecasts": {
+    "dem_to_48.5": {"p05": 432, "p25": 452, "p50": 465, "p75": 478, "p95": 496},
+    "dem_48.5_49.0": {"p05": 432, "p25": 452, "p50": 465, "p75": 478, "p95": 496},
+    "dem_49.0_49.5": {"p05": 432, "p25": 452, "p50": 465, "p75": 478, "p95": 496},
+    "dem_49.5_50.0": {"p05": 432, "p25": 452, "p50": 465, "p75": 478, "p95": 496},
+    "dem_50.0_50.5": {"p05": 432, "p25": 452, "p50": 465, "p75": 478, "p95": 496},
+    "dem_50.5_51.0": {"p05": 432, "p25": 452, "p50": 465, "p75": 478, "p95": 496},
+    "dem_51.0_51.5": {"p05": 432, "p25": 452, "p50": 465, "p75": 478, "p95": 496},
+    "dem_over_51.5": {"p05": 432, "p25": 452, "p50": 465, "p75": 478, "p95": 496},
+    "dem_49.5_50.0_note": null
+   },
+   "reasoning": "Production was 413-428 kb/d through mid-2026, while Pikka was starting up in May-June. Fields excluding Pikka produce more in winter, roughly 400-415 kb/d by January after a year of decline. Pikka should add 50-80 kb/d if it reaches its plateau, giving a median near 465 kb/d. The Senate result has no effect on January 2027 output.",
+   "sources": [
+    "https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=MCRFPAK2&f=M",
+    "https://worldoil.com/news/2026/8/21/santos-targets-higher-production-as-pikka-ramps-toward-80-000-bpd/",
+    "https://worldoil.com/news/2025/11/19/alaska-oil-production-set-for-biggest-jump-in-decades-eia-says/"
+   ]
+  }
+ }
+}
+```

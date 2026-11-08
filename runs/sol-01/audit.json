@@ -1,0 +1,20 @@
+{
+ "events": 25,
+ "tool_calls": 9,
+ "web_calls": 9,
+ "urls": [
+  "https://alaskabeacon.com/2026/11/03/ballot-measure-2-repeal-of-alaskas-election-system-trails-with-many-votes-uncounted/",
+  "https://www.labor.alaska.gov/news/2026/news26-19.htm",
+  "search: ",
+  "search: \"2026/11/05\" \"alaska\" \"very likely\" Peltola ...",
+  "search: Alaska 2026 Ballot Measure 2 November 6 remaining ballots repeal yes no 98,460 ...",
+  "search: Alaska DOJ appeal \"December 14\" \"2026\" Sullivan certification ...",
+  "search: Alaska November 2026 Peltola Sullivan results November 8 absentee ...",
+  "search: Alaska Peltola absentee early November 6 2026 58000 ballots 60% ...",
+  "search: site.kalshi.com Peltola Alaska Senate 2026 November 8 ..."
+ ],
+ "violations": [],
+ "suspect": [],
+ "local_calls": [],
+ "passed": true
+}

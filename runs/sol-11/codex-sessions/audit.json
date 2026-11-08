@@ -1,0 +1,186 @@
+{
+ "run": "sol-11",
+ "workdir": "/Users/maxghenis/.cache/aksen-work/sol-11",
+ "threads": [
+  {
+   "thread_id": "01a1bb33-1527-7951-b4a8-dcdc7954a08c",
+   "spawned_by": null,
+   "agent_path": null,
+   "started": "2026-11-08T12:47:29.576Z",
+   "file": "codex-sessions/rollout-2026-11-08T07-47-29-01a1bb33-1527-7951-b4a8-dcdc7954a08c.jsonl",
+   "sha256": "e659a4e61ad6290bc1ea4e0f75a45f5ce6102cb00ee77c43b5afcbc175da7b47",
+   "items": {
+    "UserMessage": 1,
+    "AgentMessage": 6,
+    "SubAgentActivity": 10,
+    "Extension:web.search": 17,
+    "Reasoning": 36
+   },
+   "script_tools": {
+    "web__run": 17
+   },
+   "functions": {
+    "spawn_agent": 3,
+    "followup_task": 2
+   },
+   "audit": {
+    "events": 59,
+    "tool_calls": 17,
+    "web_calls": 17,
+    "urls": [
+     "https://alaskanews.com/c/alaska-news/peltola-leads-sullivan-by-626-votes-with-nearly-all-alaska-precincts-counted",
+     "https://fairvote.org/how-will-remaining-ballots-affect-alaskas-statewide-elections/",
+     "https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?f=M&n=PET&s=MCRFPAK2",
+     "https://www.elections.alaska.gov/enr/26GENR/",
+     "https://www.nytimes.com/2026/11/05/us/alaska-ranked-choice-data-sullivan-peltola.html",
+     "https://www.santos.com/news/2026-third-quarter-report/",
+     "https://www.senate.gov/about/origins-foundations/senate-and-constitution/judging-elections-qualifications.htm",
+     "search: ",
+     "search: \"Mark Kelly\" \"Sullivan\" \"Hegseth\" November 2026 ...",
+     "search: \"United States v. State of Alaska\" \"2026\" \"November\" \"appeal\" ...",
+     "search: '20,000'",
+     "search: Alaska 2026 remaining absentee 2024 Peltola 2026 early votes Mary Peltola November 7 projections ...",
+     "search: Alaska November 5 2026 ranked choice data Peltola Sullivan Heikes cast vote records New York Times ...",
+     "search: Alaska November 8 2026 Peltola Sullivan 102962 102325 ...",
+     "search: Alaska election 2026 Peltola 58% early absentee Sullivan remaining ballots November 6 7 ...",
+     "search: site.senate.gov judging elections returns qualifications Senate contested elections ..."
+    ],
+    "violations": [],
+    "suspect": [],
+    "local_calls": [],
+    "passed": true
+   }
+  },
+  {
+   "thread_id": "01a1bb33-326d-73d2-8ea6-201f02500c98",
+   "spawned_by": "01a1bb33-1527-7951-b4a8-dcdc7954a08c",
+   "agent_path": "/root/economic_sources",
+   "started": "2026-11-08T12:47:37.128Z",
+   "file": "codex-sessions/rollout-2026-11-08T07-47-37-01a1bb33-326d-73d2-8ea6-201f02500c98.jsonl",
+   "sha256": "657344e100bda2474314d146325eb61fab8507c220b1ee0966bc27ff1903f543",
+   "items": {
+    "Extension:web.search": 14,
+    "Reasoning": 19,
+    "SubAgentActivity": 6,
+    "AgentMessage": 2
+   },
+   "script_tools": {
+    "web__run": 14
+   },
+   "functions": {
+    "send_message": 6
+   },
+   "audit": {
+    "events": 35,
+    "tool_calls": 14,
+    "web_calls": 14,
+    "urls": [
+     "https://fairvote.org/how-will-remaining-ballots-affect-alaskas-statewide-elections/",
+     "https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=MCRFPAK2&f=M",
+     "https://www.eia.gov/outlooks/steo/archives/Oct26.pdf",
+     "search: ",
+     "search: \"Kreiss-Tomkins\" \"57 percent\" \"45\" ...",
+     "search: \"Kreiss-Tomkins\" \"57%\" \"2026\" \"early\" ...",
+     "search: '57%'",
+     "search: 'Alaska'",
+     "search: Alaska Pikka first oil October 2026 production ...",
+     "search: Alaska Senate Peltola Sullivan November 6 2026 FairVote 860 ...",
+     "search: Alaska September 2026 unemployment rate seasonally adjusted October 2026 BLS ...",
+     "search: site.eia.gov \"Alaska\" \"10/30\" \"487\" \"2026\" ...",
+     "search: site.nytimes.com/2026/11/05/us/alaska-ranked-choice-data-sullivan-peltola \"governor\" ...",
+     "search: site.santos.com October 2026 Pikka 70000 production ..."
+    ],
+    "violations": [],
+    "suspect": [],
+    "local_calls": [],
+    "passed": true
+   }
+  },
+  {
+   "thread_id": "01a1bb33-4dc0-7da2-bb5f-b6b96e9af5a5",
+   "spawned_by": "01a1bb33-1527-7951-b4a8-dcdc7954a08c",
+   "agent_path": "/root/legal_sources",
+   "started": "2026-11-08T12:47:44.066Z",
+   "file": "codex-sessions/rollout-2026-11-08T07-47-44-01a1bb33-4dc0-7da2-bb5f-b6b96e9af5a5.jsonl",
+   "sha256": "a844bde35d4558efc303517019f51eb5b5e9bfaecd951e6991eb16c8bbfa872f",
+   "items": {
+    "Extension:web.search": 6,
+    "Reasoning": 9,
+    "SubAgentActivity": 4,
+    "AgentMessage": 2
+   },
+   "script_tools": {
+    "web__run": 6
+   },
+   "functions": {
+    "send_message": 4
+   },
+   "audit": {
+    "events": 17,
+    "tool_calls": 6,
+    "web_calls": 6,
+    "urls": [
+     "https://alaskapublic.org/news/2026-11-06/peltola-campaign-demands-information-about-rejected-absentee-ballots",
+     "https://law.state.ak.us/press/releases/2026/110626-Peltola.html",
+     "https://www.democracydocket.com/cases/alaska-u-s-senate-election-certification-challenge-doj/",
+     "search: 2024 Alaska ranked choice voting repeal recount 664 votes December 2024 result ...",
+     "search: Alaska statute 15.20.430 recount 0.5 percent election contest 15.20.540 ...",
+     "search: site.senate.gov Murkowski January 5 2011 sworn oath ..."
+    ],
+    "violations": [],
+    "suspect": [],
+    "local_calls": [],
+    "passed": true
+   }
+  },
+  {
+   "thread_id": "01a1bb33-62b5-7141-bc0f-0c77cbae9922",
+   "spawned_by": "01a1bb33-1527-7951-b4a8-dcdc7954a08c",
+   "agent_path": "/root/senate_national",
+   "started": "2026-11-08T12:47:49.429Z",
+   "file": "codex-sessions/rollout-2026-11-08T07-47-49-01a1bb33-62b5-7141-bc0f-0c77cbae9922.jsonl",
+   "sha256": "7e188be4b54201b53853c4e342f16e35dfd1b9f2b4511fdd388ca80d864aade6",
+   "items": {
+    "Extension:web.search": 10,
+    "SubAgentActivity": 4,
+    "Reasoning": 10,
+    "AgentMessage": 1
+   },
+   "script_tools": {
+    "web__run": 10
+   },
+   "functions": {
+    "send_message": 4
+   },
+   "audit": {
+    "events": 21,
+    "tool_calls": 10,
+    "web_calls": 10,
+    "urls": [
+     "https://crookedmedia.substack.com/p/what-a-day-in-the-pete-of-the-moment",
+     "https://rollcall.com/2026/11/03/key-midterm-election-results/",
+     "https://www.reddit.com/r/YAPms/comments/1xqh1pd/mark_kelly_reportedly_floats_dan_sullivan_as/",
+     "search: \"Dan Sullivan\" \"2026\" \"Cabinet\" ...",
+     "search: \"Kelly\" \"Sullivan\" \"Hegseth\" \"In the Pete\" ...",
+     "search: \"Mark Kelly\" \"Dan Sullivan\" \"Hegseth\" \"November\" \"2026\" ...",
+     "search: 2026 election results Senate November 2026 Democrats Republicans ...",
+     "search: Alaska United States Senate vacancy governor appointment same party 2026 law ...",
+     "search: Mississippi Senate election November 8 2026 Colom Hyde-Smith votes remaining ...",
+     "search: site:crookedmedia.substack.com/p/what-a-day-in-the-pete-of-the-moment \"Sullivan\" ..."
+    ],
+    "violations": [],
+    "suspect": [],
+    "local_calls": [],
+    "passed": true
+   }
+  }
+ ],
+ "missing": [],
+ "flags": [],
+ "orphans": [],
+ "web_calls": 47,
+ "commands": 0,
+ "violations": 0,
+ "suspect": 0,
+ "passed": true
+}

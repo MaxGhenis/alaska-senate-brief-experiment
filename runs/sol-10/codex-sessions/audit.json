@@ -1,0 +1,200 @@
+{
+ "run": "sol-10",
+ "workdir": "/Users/maxghenis/.cache/aksen-work/sol-10",
+ "threads": [
+  {
+   "thread_id": "01a1bb33-1493-7291-bafe-a3f3784404be",
+   "spawned_by": null,
+   "agent_path": null,
+   "started": "2026-11-08T12:47:29.429Z",
+   "file": "codex-sessions/rollout-2026-11-08T07-47-29-01a1bb33-1493-7291-bafe-a3f3784404be.jsonl",
+   "sha256": "90d13e4f640651377353127c1de53e01a75a7b9f20ac88d297398cbaa8b2e341",
+   "items": {
+    "UserMessage": 1,
+    "Reasoning": 45,
+    "AgentMessage": 5,
+    "SubAgentActivity": 16,
+    "Extension:web.search": 14
+   },
+   "script_tools": {
+    "web__run": 14
+   },
+   "functions": {
+    "spawn_agent": 3,
+    "send_message": 2,
+    "followup_task": 4
+   },
+   "audit": {
+    "events": 64,
+    "tool_calls": 14,
+    "web_calls": 14,
+    "urls": [
+     "https://ballotpedia.org/Election_results,_2026:_U.S._Senate",
+     "https://fairvote.org/how-will-remaining-ballots-affect-alaskas-statewide-elections/",
+     "https://www.democracydocket.com/news-alerts/new-data-suggests-peltola-likely-to-win-alaska-voters-not-confused-by-2-dan-sullivans/",
+     "https://www.elections.alaska.gov/enr/26GENR/",
+     "https://www.elections.alaska.gov/enr/26GENR/index.html",
+     "search: ",
+     "search: 'takeaways'",
+     "search: Alaska Peltola Sullivan November 8 2026 Senate ballots ranked choice ...",
+     "search: Alaska Senate November 8 2026 Peltola Kalshi Polymarket chance 2026 ...",
+     "search: Peltola November 2026 \"56.6\" \"56.7\" ...",
+     "search: site.alaskabeacon.com/2026/11/ Peltola uncounted early absentee ballots 2026 60,000 ...",
+     "search: site.elections.alaska.gov 2026 governor ranked choice majority 50 first choice two candidates tabulation ..."
+    ],
+    "violations": [],
+    "suspect": [],
+    "local_calls": [],
+    "passed": true
+   }
+  },
+  {
+   "thread_id": "01a1bb33-617b-7303-82fe-73820fce16ca",
+   "spawned_by": "01a1bb33-1493-7291-bafe-a3f3784404be",
+   "agent_path": "/root/economy_sources",
+   "started": "2026-11-08T12:47:49.116Z",
+   "file": "codex-sessions/rollout-2026-11-08T07-47-49-01a1bb33-617b-7303-82fe-73820fce16ca.jsonl",
+   "sha256": "8bdd09bb395e2c067de89ac6742d031d5ba9d73350363f6d993d472e35924024",
+   "items": {
+    "Extension:web.search": 13,
+    "SubAgentActivity": 7,
+    "Reasoning": 14,
+    "AgentMessage": 3
+   },
+   "script_tools": {
+    "web__run": 13
+   },
+   "functions": {
+    "send_message": 7
+   },
+   "audit": {
+    "events": 30,
+    "tool_calls": 13,
+    "web_calls": 13,
+    "urls": [
+     "https://www.elections.alaska.gov/election-results/",
+     "search: ",
+     "search: \"AS 15.15.350\" \"two or fewer\" \"majority\" ...",
+     "search: \"Alaska\" \"10/30\" \"2026\" \"Production\" \"eia\" ...",
+     "search: \"Kreiss-Tomkins\" \"early\" \"2026\" \"November 6\" ballots ...",
+     "search: \"PAPRPAK\" \"2027\" \"0.5\" \"2026\" ...",
+     "search: 'October 20'",
+     "search: Alaska Pikka first oil 2026 October 2026 production November 2026 ...",
+     "search: site.bls.gov \"Alaska\" \"2026\" \"Jan\" \"Feb\" \"4.6\" unemployment ...",
+     "search: site.bls.gov Alaska September 2026 unemployment rate November 2026 ...",
+     "search: site.eia.gov/dnav/pet \"2026-Oct\" \"10/30\" \"Alaska\" \"487\" ...",
+     "search: site.elections.alaska.gov 2026 ranked choice majority first choice no tabulation governor Kreiss Tomkins November 2026 ...",
+     "search: site.santos.com October 2026 third quarter activities report Pikka 70000 ..."
+    ],
+    "violations": [],
+    "suspect": [],
+    "local_calls": [],
+    "passed": true
+   }
+  },
+  {
+   "thread_id": "01a1bb33-7641-7091-91b7-4eed88e19c22",
+   "spawned_by": "01a1bb33-1493-7291-bafe-a3f3784404be",
+   "agent_path": "/root/legal_sources",
+   "started": "2026-11-08T12:47:54.433Z",
+   "file": "codex-sessions/rollout-2026-11-08T07-47-54-01a1bb33-7641-7091-91b7-4eed88e19c22.jsonl",
+   "sha256": "c9830a188a8e4765a4134203472b31a8df5c08bd9a50137f36d56d14a4e8c881",
+   "items": {
+    "Extension:web.search": 20,
+    "SubAgentActivity": 8,
+    "Reasoning": 16,
+    "AgentMessage": 2
+   },
+   "script_tools": {
+    "web__run": 20
+   },
+   "functions": {
+    "send_message": 8
+   },
+   "audit": {
+    "events": 38,
+    "tool_calls": 20,
+    "web_calls": 20,
+    "urls": [
+     "https://law.justia.com/cases/alaska/supreme-court/2010/s-14112-1.html",
+     "https://law.justia.com/codes/alaska/title-15/chapter-20/article-3/section-15-20-540/",
+     "https://storage.courtlistener.com/recap/gov.uscourts.ca9.8a0b432c-0e24-4384-bbb1-a17023532ab5/gov.uscourts.ca9.8a0b432c-0e24-4384-bbb1-a17023532ab5.2.0.pdf",
+     "https://www.akleg.gov/basis/statutes.asp#15.20.430",
+     "https://www.elections.alaska.gov/department-of-law-responds-to-lawsuit-from-mary-peltola-campaign/",
+     "search: \"15.40.145\" \"Revisor\" \"2004\" ...",
+     "search: \"15.40.145\" \"party\" ...",
+     "search: \"26-7304\" \"Alaska\" ...",
+     "search: \"Trump weighs in on Alaska\" \"Elias\" ...",
+     "search: \"Trump\" \"Alaska\" \"Sullivan\" \"November 7, 2026\" certification ...",
+     "search: \"United States v. Alaska\" \"Civil Rights Litigation Clearinghouse\" \"2026\" ...",
+     "search: Alaska 2010 Miller Murkowski election contest certification stayed December Senate oath 2011 ...",
+     "search: Alaska US Senate vacancy governor appointment 2026 statute 15.40.140 party ...",
+     "search: site.adn.com/politics/2026/11/05/trump-weighs-in-on-alaskas-tight-us-senate-race \"Elias\" ...",
+     "search: site.akleg.gov \"15.20.430\" \"candidate or 10 qualified voters\" ...",
+     "search: site.akleg.gov AS 15.20.430 recount 0.5 percent Alaska election contest 15.20.540 ...",
+     "search: site.courts.alaska.gov \"Sullivan\" \"2026\" \"ballot\" ...",
+     "search: site.elections.alaska.gov \"shall certify\" \"15.20.220\" ...",
+     "search: site.elections.alaska.gov/department-of-law-responds-to-lawsuit-from-mary-peltola-campaign \"cure\" ...",
+     "search: site.senate.gov \"certificate\" \"governor\" \"Rule II\" ..."
+    ],
+    "violations": [],
+    "suspect": [],
+    "local_calls": [],
+    "passed": true
+   }
+  },
+  {
+   "thread_id": "01a1bb33-8aa9-79b0-bb1a-654bb7e7e218",
+   "spawned_by": "01a1bb33-1493-7291-bafe-a3f3784404be",
+   "agent_path": "/root/senate_sources",
+   "started": "2026-11-08T12:47:59.657Z",
+   "file": "codex-sessions/rollout-2026-11-08T07-47-59-01a1bb33-8aa9-79b0-bb1a-654bb7e7e218.jsonl",
+   "sha256": "37250173c583eab4fb702d0cf99b15d9c1e1c5c029a3c8155324141935e4bd16",
+   "items": {
+    "Extension:web.search": 15,
+    "SubAgentActivity": 5,
+    "Reasoning": 11,
+    "AgentMessage": 2
+   },
+   "script_tools": {
+    "web__run": 15
+   },
+   "functions": {
+    "send_message": 5
+   },
+   "audit": {
+    "events": 28,
+    "tool_calls": 15,
+    "web_calls": 15,
+    "urls": [
+     "https://polling-desk.com/results",
+     "https://www.akleg.gov/statutesPDF/Title-15.pdf",
+     "search: ",
+     "search: \"Dan Sullivan\" \"Hegseth\" \"Kelly\" \"November 7\" ...",
+     "search: \"Dan Sullivan\" \"November\" \"2026\" \"Trump\" \"post\" ...",
+     "search: \"Dan Sullivan\" \"Trump\" \"administration\" \"appointment\" \"November 2026\" ...",
+     "search: \"In the Pete of the Moment\" \"Sullivan\" ...",
+     "search: \"Kelly\" \"Sullivan\" \"Hegseth\" site:axios.com ...",
+     "search: \"Mark Kelly\" \"Dan Sullivan\" \"November 2026\" ...",
+     "search: \"Mark Kelly\" \"Sullivan\" \"Hegseth\" ...",
+     "search: \"Sullivan\" \"appointment\" \"2026\" \"November\" ...",
+     "search: 'Rankin'",
+     "search: 2026 November 8 Senate election results Democrats Republicans control Senate ...",
+     "search: site.sullivan.senate.gov \"Dan's Bio\" ..."
+    ],
+    "violations": [],
+    "suspect": [],
+    "local_calls": [],
+    "passed": true
+   }
+  }
+ ],
+ "missing": [],
+ "flags": [],
+ "orphans": [],
+ "web_calls": 62,
+ "commands": 0,
+ "violations": 0,
+ "suspect": 0,
+ "passed": true
+}

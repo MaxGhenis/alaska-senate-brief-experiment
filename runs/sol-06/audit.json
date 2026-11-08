@@ -1,0 +1,21 @@
+{
+ "events": 28,
+ "tool_calls": 10,
+ "web_calls": 10,
+ "urls": [
+  "https://alaskapublic.org/news/politics/elections/2026-11-06/4-interesting-things-weve-learned-from-alaska-ballot-data",
+  "https://fairvote.org/how-will-remaining-ballots-affect-alaskas-statewide-elections/",
+  "https://www.akleg.gov/basis/statutes.asp#15.20.430",
+  "https://www.ap.org/the-definitive-source/behind-the-news/calling-control-of-congress-in-the-2026-midterm-elections/",
+  "https://www.senate.gov/about/origins-foundations/senate-and-constitution/judging-elections-qualifications.htm",
+  "search: Alaska November 2026 Peltola Sullivan ranked choice cast vote records 860 538 ...",
+  "search: Alaska Senate November 2026 Peltola Sullivan November 8 results remaining ballots 102962 ...",
+  "search: Alaska ranked choice \"continues\" \"two candidates\" \"majority\" 2026 governor ...",
+  "search: site.alaskabeacon.com/2026/11/06 Peltola remaining early ballots governor ...",
+  "search: site.kalshi.com Alaska Senate Peltola November 2026 98 ..."
+ ],
+ "violations": [],
+ "suspect": [],
+ "local_calls": [],
+ "passed": true
+}

@@ -1,0 +1,26 @@
+{
+ "events": 101,
+ "tool_calls": 15,
+ "web_calls": 15,
+ "urls": [
+  "https://en.wikipedia.org/wiki/2026_United_States_Senate_election_in_Alaska",
+  "https://thehill.com/homenews/campaign/6206385-alaska-dunleavy-vote-update/",
+  "https://www.dailywire.com/news/how-votes-will-be-counted-as-two-senate-seats-hang-in-the-balance",
+  "https://www.democracydocket.com/news-alerts/new-data-suggests-peltola-likely-to-win-alaska-voters-not-confused-by-2-dan-sullivans/",
+  "https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=MCRFPAK2&f=M",
+  "https://www.kodiakdailymirror.com/extra/article_8cb86a13-1bb5-4180-b648-a40d65eb5672.html",
+  "https://www.mpbonline.org/blogs/news/what-races-the-ap-has-not-yet-called-in-contests-for-senate-and-governor/",
+  "https://www.nbcnews.com/politics/2026-election/live-blog/election-results-house-senate-trump-congress-live-updates-rcna607549",
+  "search: \"Democrats\" Senate \"53 seats\" OR \"52 seats\" OR \"54 seats\" 2026 midterms Alaska Mississippi undecided",
+  "search: Alaska Senate Peltola Sullivan results absentee ballots count",
+  "search: Alaska crude oil production 2026 Pikka EIA thousand barrels per day",
+  "search: Alaska oil production August 2026 Pikka ramp-up barrels per day North Slope",
+  "search: Alaska unemployment rate September 2026 seasonally adjusted",
+  "search: Peltola Sullivan Senate race Alaska November 7 2026 ranked choice outstanding ballots Democrats 54 seats",
+  "search: Senate balance of power 2027 Democrats seats called Mississippi Alaska uncalled"
+ ],
+ "violations": [],
+ "suspect": [],
+ "local_calls": [],
+ "passed": true
+}

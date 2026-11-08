@@ -1,0 +1,29 @@
+{
+ "events": 125,
+ "tool_calls": 18,
+ "web_calls": 18,
+ "urls": [
+  "https://en.wikipedia.org/wiki/2026_United_States_Senate_election_in_Alaska",
+  "https://fred.stlouisfed.org/series/AKUR",
+  "https://fred.stlouisfed.org/series/MCRFPAK2",
+  "https://michaeldsellers.substack.com/p/mississippi-alaska-senate-races-a",
+  "https://www.adn.com/politics/2026/11/06/like-in-past-elections-alaska-is-still-counting-ballots-when-will-we-know-who-won/",
+  "https://www.democracydocket.com/news-alerts/new-data-suggests-peltola-likely-to-win-alaska-voters-not-confused-by-2-dan-sullivans/",
+  "https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=MCRFPAK2&f=M",
+  "search: \"Peltola\" New York Times analysis mail ballots lead expected to grow Alaska ranked choice cast vote record",
+  "search: Alaska Beacon preliminary ranked choice tabulation Senate Sullivan second choice Heikes transfers 2026",
+  "search: Alaska Senate Peltola Sullivan results absentee ballots count",
+  "search: Alaska Senate race Peltola Sullivan November 7 2026 ballots remaining analysis",
+  "search: Alaska crude oil production 2026 Pikka Willow barrels per day EIA",
+  "search: Alaska unemployment rate seasonally adjusted 2026",
+  "search: Democrats Senate majority 2026 midterms seats flipped how many seats Democrats will have uncalled Alaska Mississippi",
+  "search: EIA Petroleum Supply Monthly Alaska crude oil production August 2026 thousand barrels per day",
+  "search: Mississippi Senate race 2026 results too close to call Hyde-Smith",
+  "search: Peltola Sullivan Polymarket OR Kalshi odds Alaska Senate after election",
+  "search: Pikka production ramp up 2026 Santos barrels per day October"
+ ],
+ "violations": [],
+ "suspect": [],
+ "local_calls": [],
+ "passed": true
+}

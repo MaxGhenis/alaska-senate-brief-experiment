@@ -1,0 +1,25 @@
+{
+ "events": 93,
+ "tool_calls": 14,
+ "web_calls": 14,
+ "urls": [
+  "https://alaskabeacon.com/2026/11/04/ranked-choice-voting-may-help-republican-us-sen-dan-sullivan-analysis-finds/",
+  "https://kalshi.com/markets/kxakmov/alaska-general-election-mov/kxakmov-aksenate26nov03",
+  "https://thealaskastory.com/sullivan-campaign-sees-328-vote-path-to-victory-as-peltola-leads-first-choices/",
+  "https://www.alaskasnewssource.com/2026/11/06/peltola-sullivan-campaigns-project-wins-while-quarter-ballots-are-outstanding/",
+  "https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=MCRFPAK2&f=M",
+  "https://www.yahoo.com/news/politics/articles/mary-peltola-appears-likely-defeat-181521586.html",
+  "search: 2026 Senate election results Democrats control Senate seats won majority",
+  "search: Alaska Peltola Sullivan ranked choice second choices Heikes \"Daniel J. Sullivan\" absentee outstanding",
+  "search: Alaska Senate Peltola Sullivan absentee ballots count November 2026",
+  "search: Alaska unemployment rate September 2026 seasonally adjusted",
+  "search: EIA Alaska crude oil production 2026 thousand barrels per day Pikka",
+  "search: Peltola Sullivan outstanding ballots estimate early votes absentee lean Peltola Nov 7",
+  "search: Pikka first oil production ramp 2026 Santos",
+  "search: Polymarket Kalshi Alaska Senate Peltola odds after election"
+ ],
+ "violations": [],
+ "suspect": [],
+ "local_calls": [],
+ "passed": true
+}

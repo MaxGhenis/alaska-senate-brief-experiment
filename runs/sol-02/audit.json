@@ -1,0 +1,18 @@
+{
+ "events": 21,
+ "tool_calls": 7,
+ "web_calls": 7,
+ "urls": [
+  "https://alaskapublic.org/news/politics/elections/2026-11-06/4-interesting-things-weve-learned-from-alaska-ballot-data",
+  "https://rcvis.com/v/alaska-2026-governor-lieutenant-governor",
+  "search: ",
+  "search: \"2026\" Alaska \"Measure 2\" \"absentee\" \"percent\" November ...",
+  "search: Alaska 2026 November 6 remaining ballots Peltola 20000 early 40000 absentee districts ...",
+  "search: Alaska November 2026 Peltola Sullivan results November 8 2026 ranked choice ...",
+  "search: site.alaskabeacon.com 2026 November 5 ranked choice Sullivan Peltola remaining ballots ..."
+ ],
+ "violations": [],
+ "suspect": [],
+ "local_calls": [],
+ "passed": true
+}

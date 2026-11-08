@@ -1,0 +1,174 @@
+{
+ "run": "sol-01",
+ "workdir": "/Users/maxghenis/.cache/aksen-work/sol-01",
+ "threads": [
+  {
+   "thread_id": "01a1bb2e-d489-7e31-9fba-c90b0aa8e679",
+   "spawned_by": null,
+   "agent_path": null,
+   "started": "2026-11-08T12:42:50.890Z",
+   "file": "codex-sessions/rollout-2026-11-08T07-42-50-01a1bb2e-d489-7e31-9fba-c90b0aa8e679.jsonl",
+   "sha256": "1b76522b92d69efb316f55ab73afbaa27d34ecae02acd0d3b065e7a132b8961f",
+   "items": {
+    "UserMessage": 1,
+    "AgentMessage": 4,
+    "SubAgentActivity": 10,
+    "Extension:web.search": 9,
+    "Reasoning": 25
+   },
+   "script_tools": {
+    "web__run": 9
+   },
+   "functions": {
+    "spawn_agent": 3,
+    "send_message": 2,
+    "followup_task": 1
+   },
+   "audit": {
+    "events": 38,
+    "tool_calls": 9,
+    "web_calls": 9,
+    "urls": [
+     "https://alaskabeacon.com/2026/11/03/ballot-measure-2-repeal-of-alaskas-election-system-trails-with-many-votes-uncounted/",
+     "https://www.labor.alaska.gov/news/2026/news26-19.htm",
+     "search: ",
+     "search: \"2026/11/05\" \"alaska\" \"very likely\" Peltola ...",
+     "search: Alaska 2026 Ballot Measure 2 November 6 remaining ballots repeal yes no 98,460 ...",
+     "search: Alaska DOJ appeal \"December 14\" \"2026\" Sullivan certification ...",
+     "search: Alaska November 2026 Peltola Sullivan results November 8 absentee ...",
+     "search: Alaska Peltola absentee early November 6 2026 58000 ballots 60% ...",
+     "search: site.kalshi.com Peltola Alaska Senate 2026 November 8 ..."
+    ],
+    "violations": [],
+    "suspect": [],
+    "local_calls": [],
+    "passed": true
+   }
+  },
+  {
+   "thread_id": "01a1bb2f-0179-7e91-8160-a0d8477c743a",
+   "spawned_by": "01a1bb2e-d489-7e31-9fba-c90b0aa8e679",
+   "agent_path": "/root/legal",
+   "started": "2026-11-08T12:43:02.393Z",
+   "file": "codex-sessions/rollout-2026-11-08T07-43-02-01a1bb2f-0179-7e91-8160-a0d8477c743a.jsonl",
+   "sha256": "87c49d179dc431454471d233a202d9a8c5ca463cfb6bcb8d7751080ad43d0572",
+   "items": {
+    "Extension:web.search": 8,
+    "Reasoning": 10,
+    "SubAgentActivity": 3,
+    "AgentMessage": 1
+   },
+   "script_tools": {
+    "web__run": 8
+   },
+   "functions": {
+    "send_message": 3
+   },
+   "audit": {
+    "events": 19,
+    "tool_calls": 8,
+    "web_calls": 8,
+    "urls": [
+     "https://law.justia.com/codes/alaska/title-15/chapter-20/article-2/section-15-20-450/",
+     "https://www.akleg.gov/statutesPDF/Title-15.pdf",
+     "search: \"2026\" \"Alaska\" \"certify\" \"Dunleavy\" \"Peltola\" court November ...",
+     "search: \"AS 15.20.450\" \"0.5\" \"20\" ...",
+     "search: \"AS 15.20.450\" \"State shall\" ...",
+     "search: Alaska Senate 2010 Miller injunction certification December 28 2010 Murkowski sworn January 5 2011 court ...",
+     "search: Alaska recount election 0.5 percent AS 15.20.430 450 election contest 540 550 certification 2010 Miller Murkowski ...",
+     "search: site.senate.gov credentials oath election certificate senator seated contested election Senate 2011 Murkowski ..."
+    ],
+    "violations": [],
+    "suspect": [],
+    "local_calls": [],
+    "passed": true
+   }
+  },
+  {
+   "thread_id": "01a1bb2f-1491-7493-bb4c-20daa6a86663",
+   "spawned_by": "01a1bb2e-d489-7e31-9fba-c90b0aa8e679",
+   "agent_path": "/root/economy",
+   "started": "2026-11-08T12:43:07.281Z",
+   "file": "codex-sessions/rollout-2026-11-08T07-43-07-01a1bb2f-1491-7493-bb4c-20daa6a86663.jsonl",
+   "sha256": "78d3ee98975d2779d0f8ab70ce050fb705c669d9258076671a36ced0195df7d0",
+   "items": {
+    "Extension:web.search": 7,
+    "SubAgentActivity": 4,
+    "Reasoning": 8,
+    "AgentMessage": 2
+   },
+   "script_tools": {
+    "web__run": 7
+   },
+   "functions": {
+    "send_message": 4
+   },
+   "audit": {
+    "events": 17,
+    "tool_calls": 7,
+    "web_calls": 7,
+    "urls": [
+     "search: \"2026 Santos Third Quarter Report\" \"santos.com\" ...",
+     "search: \"Alaska\" \"10/30\" \"2026\" \"production\" \"barrels\" ...",
+     "search: 'Embargoed'",
+     "search: Pikka first oil 2026 October November 2026 production Santos Alaska ...",
+     "search: site.bls.gov Alaska unemployment rate September 2026 seasonally adjusted ...",
+     "search: site.eia.gov/outlooks/steo \"October 2026\" \"Alaska\" \"0.50\" ...",
+     "search: site.santos.com \"Third quarter report 2026\" Pikka ..."
+    ],
+    "violations": [],
+    "suspect": [],
+    "local_calls": [],
+    "passed": true
+   }
+  },
+  {
+   "thread_id": "01a1bb2f-2b51-7581-95f2-8b4152495824",
+   "spawned_by": "01a1bb2e-d489-7e31-9fba-c90b0aa8e679",
+   "agent_path": "/root/senate_national",
+   "started": "2026-11-08T12:43:13.105Z",
+   "file": "codex-sessions/rollout-2026-11-08T07-43-13-01a1bb2f-2b51-7581-95f2-8b4152495824.jsonl",
+   "sha256": "cf9189e5472551b45a665a523a6c67ad705c85c4e0b9abbba1812bdd62a5f928",
+   "items": {
+    "Extension:web.search": 9,
+    "SubAgentActivity": 3,
+    "Reasoning": 8,
+    "AgentMessage": 1
+   },
+   "script_tools": {
+    "web__run": 9
+   },
+   "functions": {
+    "send_message": 3
+   },
+   "audit": {
+    "events": 18,
+    "tool_calls": 9,
+    "web_calls": 9,
+    "urls": [
+     "https://apnews.com/article/b20c577aaffced99155af448bd182fa5",
+     "https://crookedmedia.substack.com/p/what-a-day-in-the-pete-of-the-moment",
+     "search: \"2026\" \"Hamilton\" \"Senate\" \"November 7\" ...",
+     "search: \"Kelly\" \"Sullivan\" \"Hegseth\" \"Crooked\" ...",
+     "search: \"Mark Kelly\" \"Dan Sullivan\" \"Hegseth\" \"November\" \"2026\" ...",
+     "search: \"November\" \"2026\" \"Senate\" \"54\" \"Mississippi\" \"Democrats\" ...",
+     "search: \"Scott Colom and Black Mississippians\" ...",
+     "search: 2026 election Senate results November 7 2026 Democratic caucus seats Alaska Peltola Sullivan ...",
+     "search: site:crookedmedia.substack.com/p/what-a-day-in-the-pete-of-the-moment \"Sullivan\" \"Kelly\" ..."
+    ],
+    "violations": [],
+    "suspect": [],
+    "local_calls": [],
+    "passed": true
+   }
+  }
+ ],
+ "missing": [],
+ "flags": [],
+ "orphans": [],
+ "web_calls": 33,
+ "commands": 0,
+ "violations": 0,
+ "suspect": 0,
+ "passed": true
+}

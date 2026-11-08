@@ -1,0 +1,29 @@
+{
+ "events": 135,
+ "tool_calls": 18,
+ "web_calls": 18,
+ "urls": [
+  "https://adn.com/politics/2026/11/05/trump-weighs-in-on-alaskas-tight-us-senate-race-as-thousands-of-ballots-are-yet-to-be-tallied",
+  "https://alaskabeacon.com/2026/11/03/democratic-candidate-mary-peltola-leads-in-early-vote-counts-for-alaskas-us-senate-election/",
+  "https://fairvote.org/results-and-analysis-from-alaskas-2026-elections/",
+  "https://michaeldsellers.substack.com/p/mississippi-alaska-senate-races-a",
+  "https://thealaskastory.com/alaska-north-slope-oil-production-tops-500000-barrels-a-day-as-pikka-ramps-up/",
+  "https://www.democracydocket.com/news-alerts/new-data-suggests-peltola-likely-to-win-alaska-voters-not-confused-by-2-dan-sullivans/",
+  "https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=MCRFPAK2&f=M",
+  "search: Alaska Ballot Measure 2 repeal ranked choice 2026 results trailing absentee",
+  "search: Alaska Senate Peltola Sullivan absentee ballots count November 2026",
+  "search: Alaska oil production August 2026 barrels per day Pikka ramp-up North Slope record",
+  "search: Alaska unemployment rate September 2026 seasonally adjusted",
+  "search: Dan Osborn Nebraska Senate 2026 result caucus",
+  "search: Democrats Senate majority 2026 midterm results seat count uncalled races",
+  "search: EIA Alaska crude oil field production 2026 thousand barrels per day Pikka",
+  "search: EIA Petroleum Supply Monthly Alaska crude oil production August 2026",
+  "search: Kreiss-Tomkins governor majority first choice Wilson Bronson Taylor Alaska governor results ranked choice",
+  "search: Peltola Sullivan Polymarket Kalshi Alaska Senate odds after election",
+  "search: Senate control 2026 election results Democrats seats 51 Alaska Peltola decides majority"
+ ],
+ "violations": [],
+ "suspect": [],
+ "local_calls": [],
+ "passed": true
+}

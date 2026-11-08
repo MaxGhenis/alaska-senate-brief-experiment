@@ -1,0 +1,19 @@
+{
+ "events": 26,
+ "tool_calls": 9,
+ "web_calls": 9,
+ "urls": [
+  "https://alaskapublic.org/news/2026-11-06/peltola-campaign-demands-information-about-rejected-absentee-ballots",
+  "search: ",
+  "search: \"2026\" \"Alaska\" \"Measure 2\" \"early\" \"percent\" November 6 ...",
+  "search: \"Kreiss-Tomkins\" \"early\" \"57\" November 2026 ...",
+  "search: \"Peltola\" \"November 5, 2026\" \"60,000\" \"ranked\" ...",
+  "search: \"Peltola\" \"Sullivan\" \"2026\" \"early votes\" \"57\" ...",
+  "search: Alaska November 2026 Peltola Sullivan 102962 102325 ...",
+  "search: Alaska Peltola Sullivan ranked choice cast vote record November 5 2026 New York Times 22% ..."
+ ],
+ "violations": [],
+ "suspect": [],
+ "local_calls": [],
+ "passed": true
+}

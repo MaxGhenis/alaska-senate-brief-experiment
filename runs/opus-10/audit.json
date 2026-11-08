@@ -1,0 +1,26 @@
+{
+ "events": 108,
+ "tool_calls": 15,
+ "web_calls": 15,
+ "urls": [
+  "https://alaskabeacon.com/?p=30637",
+  "https://www.alaskasnewssource.com/2026/11/06/peltola-sullivan-campaigns-project-wins-while-quarter-ballots-are-outstanding/",
+  "https://www.democracydocket.com/news-alerts/new-data-suggests-peltola-likely-to-win-alaska-voters-not-confused-by-2-dan-sullivans/",
+  "search: Alaska Ballot Measure 2 repeal ranked choice 2026 results",
+  "search: Alaska North Slope oil production August 2026 barrels per day Pikka ramp",
+  "search: Alaska Senate Peltola Sullivan results absentee ballots count",
+  "search: Alaska Senate Peltola odds Kalshi Polymarket November 2026",
+  "search: Alaska unemployment rate seasonally adjusted September 2026",
+  "search: Colom Hyde-Smith lead latest count November 7 2026",
+  "search: EIA Alaska field production crude oil 2026 thousand barrels per day Petroleum Supply Monthly Pikka",
+  "search: Justice Department appeal Alaska Senate certification lawsuit dismissed standing Ninth Circuit November 2026",
+  "search: Mississippi Senate race too close to call Hyde-Smith November 2026",
+  "search: Peltola Sullivan Alaska Senate ranked choice second choice Heikes Daniel Sullivan Jr. analysis November 7",
+  "search: Senate control 2026 midterms results Democrats seats Mississippi Senate race",
+  "search: United States v. Alaska appeal Ninth Circuit Sullivan certification Gleason"
+ ],
+ "violations": [],
+ "suspect": [],
+ "local_calls": [],
+ "passed": true
+}

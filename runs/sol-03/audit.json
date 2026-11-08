@@ -1,0 +1,22 @@
+{
+ "events": 30,
+ "tool_calls": 11,
+ "web_calls": 11,
+ "urls": [
+  "https://alaskapublic.org/news/2026-11-06/peltola-campaign-demands-information-about-rejected-absentee-ballots",
+  "https://fairvote.org/how-will-remaining-ballots-affect-alaskas-statewide-elections/",
+  "https://polymarket.com/event/alaska-senate-election-winner?via=drops1",
+  "https://www.bls.gov/news.release/laus.t01.htm",
+  "https://www.elections.alaska.gov/enr/26GENR/",
+  "https://www.ktoo.org/2026/11/06/4-interesting-things-weve-learned-from-alaska-ballot-data/",
+  "search: ",
+  "search: 'absentee'",
+  "search: Alaska November 2026 \"Ballot Measure 2\" \"early\" votes ...",
+  "search: Alaska Senate November 8 2026 Peltola Sullivan outstanding ballots ranked choice 2026 ...",
+  "search: Peltola Sullivan November 8 2026 probability prediction markets Polymarket Kalshi 2026 Alaska Senate ..."
+ ],
+ "violations": [],
+ "suspect": [],
+ "local_calls": [],
+ "passed": true
+}

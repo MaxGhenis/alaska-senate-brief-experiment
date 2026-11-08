@@ -1,0 +1,247 @@
+```json
+{
+  "forecaster": {
+    "model": "GPT-6 (Codex)",
+    "prior_context": "none",
+    "notes": "Information cutoff: 2026-11-08. Probabilities use the 0–1 scale; vote shares and unemployment use percent; oil production uses thousand barrels per day. No local files were read. Governor forecasts follow the stipulated top-two denominator even when the first round is the last round."
+  },
+  "research_summary": "Researched reported counts, preliminary ranked-choice transfers, outstanding-ballot composition, prediction markets, court documents, Alaska election law, national Senate results, and official economic releases. My judgment gives Peltola a 0.95 probability of winning. Conditional forecasts distinguish correlated ballot outcomes from consequences of winning, incorporate elevated litigation risk following a narrow Peltola victory, and hold near-term economic forecasts constant across scenarios.",
+  "nodes": {
+    "dem_share": {
+      "forecasts": {
+        "all": {
+          "le_48.5": 0.005,
+          "le_49": 0.012,
+          "le_49.5": 0.025,
+          "le_50": 0.05,
+          "le_50.5": 0.12,
+          "le_51": 0.26,
+          "le_51.5": 0.47
+        }
+      },
+      "reasoning": "Peltola leads reported first choices; preliminary transfers modestly favor Sullivan, but the ballot record omits rural votes already included in the reported totals. Remaining early and absentee ballots should favor Peltola, consistent with previous late-count patterns and current prediction markets. I retain more downside uncertainty than market prices because the remaining ballot mix and late-campaign effects are uncertain; the upper tail includes an outright first-choice majority under the brief's specified denominator.",
+      "sources": [
+        "https://www.elections.alaska.gov/enr/26GENR/",
+        "https://alaskabeacon.com/2026/11/04/ranked-choice-voting-may-help-republican-us-sen-dan-sullivan-analysis-finds/",
+        "https://alaskapublic.org/news/politics/elections/2026-11-04/6-takeaways-from-alaskas-election",
+        "https://kalshi.com/markets/senateak/alaska-senate-race/senateak-26",
+        "https://polymarket.com/event/alaska-senate-election-winner"
+      ]
+    },
+    "bm2_yes_share": {
+      "forecasts": {
+        "dem_to_48.5": {"p05": 47.9, "p25": 48.6, "p50": 49.1, "p75": 49.6, "p95": 50.4},
+        "dem_48.5_49.0": {"p05": 47.5, "p25": 48.1, "p50": 48.6, "p75": 49.1, "p95": 49.7},
+        "dem_49.0_49.5": {"p05": 47.2, "p25": 47.9, "p50": 48.3, "p75": 48.8, "p95": 49.4},
+        "dem_49.5_50.0": {"p05": 47, "p25": 47.6, "p50": 48, "p75": 48.5, "p95": 49.1},
+        "dem_50.0_50.5": {"p05": 46.7, "p25": 47.3, "p50": 47.8, "p75": 48.2, "p95": 48.8},
+        "dem_50.5_51.0": {"p05": 46.4, "p25": 47.1, "p50": 47.5, "p75": 47.9, "p95": 48.6},
+        "dem_51.0_51.5": {"p05": 46.2, "p25": 46.8, "p50": 47.2, "p75": 47.7, "p95": 48.3},
+        "dem_over_51.5": {"p05": 45.5, "p25": 46.2, "p50": 46.7, "p75": 47.2, "p95": 47.9}
+      },
+      "reasoning": "Yes currently has approximately 48.15%, and late ballots favored retaining the election system in 2024. Early voting and Democratic support both correlate with opposition to repeal, putting my unconditional center near 47%. Higher Peltola shares imply lower Yes shares through common ballot composition, with no causal discontinuity when Peltola crosses 50%.",
+      "sources": [
+        "https://www.elections.alaska.gov/enr/26GENR/",
+        "https://alaskabeacon.com/2026/11/03/ballot-measure-2-repeal-of-alaskas-election-system-trails-with-many-votes-uncounted/",
+        "https://alaskapublic.org/news/politics/elections/2026-11-04/6-takeaways-from-alaskas-election"
+      ]
+    },
+    "gov_dem_share": {
+      "forecasts": {
+        "dem_to_48.5": {"p05": 51.7, "p25": 52.6, "p50": 53.2, "p75": 53.7, "p95": 54.5},
+        "dem_48.5_49.0": {"p05": 52.9, "p25": 53.5, "p50": 54, "p75": 54.4, "p95": 55.1},
+        "dem_49.0_49.5": {"p05": 53.3, "p25": 54, "p50": 54.5, "p75": 54.9, "p95": 55.6},
+        "dem_49.5_50.0": {"p05": 53.8, "p25": 54.5, "p50": 54.9, "p75": 55.4, "p95": 63.3},
+        "dem_50.0_50.5": {"p05": 54.3, "p25": 54.9, "p50": 55.4, "p75": 56.1, "p95": 64},
+        "dem_50.5_51.0": {"p05": 54.7, "p25": 55.4, "p50": 56.4, "p75": 63.8, "p95": 64.4},
+        "dem_51.0_51.5": {"p05": 55.2, "p25": 63.2, "p50": 63.8, "p75": 64.2, "p95": 64.7},
+        "dem_over_51.5": {"p05": 63.3, "p25": 64, "p50": 64.4, "p75": 64.8, "p95": 65.5}
+      },
+      "reasoning": "Kreiss-Tomkins currently has approximately 49.13% of first choices, while preliminary transfer analyses suggest approximately 55% in a completed runoff. Stronger Peltola results imply stronger Democratic ballots and a greater chance that Kreiss-Tomkins exceeds 50% initially. Under the brief's top-two denominator, an initial majority produces approximately 63–65%, creating the mixture visible in these quantiles; all cross-range movement reflects correlated ballots.",
+      "sources": [
+        "https://www.elections.alaska.gov/enr/26GENR/",
+        "https://fairvote.org/results-and-analysis-from-alaskas-2026-elections/",
+        "https://alaskanews.com/c/alaska-news/analysis-ranked-choices-would-put-kreiss-tomkins-over-50-as-counting-continues",
+        "https://alaskapublic.org/news/politics/elections/2026-11-04/6-takeaways-from-alaskas-election"
+      ]
+    },
+    "recount": {
+      "forecasts": {
+        "dem_to_48.5": {"p": 0.06},
+        "dem_48.5_49.0": {"p": 0.13},
+        "dem_49.0_49.5": {"p": 0.32},
+        "dem_49.5_50.0": {"p": 0.84},
+        "dem_50.0_50.5": {"p": 0.94},
+        "dem_50.5_51.0": {"p": 0.62},
+        "dem_51.0_51.5": {"p": 0.32},
+        "dem_over_51.5": {"p": 0.15}
+      },
+      "reasoning": "Close statewide elections commonly generate recount requests, and Alaska permits applications by a defeated candidate or ten qualified voters. State funding applies to especially close margins, covering only part of each bin immediately adjacent to 50%; requests farther away require a deposit. The existing controversy and presidential support make a defeated Sullivan especially likely to pursue a recount.",
+      "sources": [
+        "https://www.elections.alaska.gov/Core/PostElectFAQ.php",
+        "https://www.akleg.gov/statutesPDF/Title-15.pdf",
+        "https://ltgov.alaska.gov/newsroom/2024/12/lieutenant-governor-nancy-dahlstrom-announces-completion-of-ballot-measure-2-recount/",
+        "https://www.democracydocket.com/cases/alaska-u-s-senate-election-certification-challenge-doj/"
+      ]
+    },
+    "contest": {
+      "forecasts": {
+        "dem_to_48.5": {"p": 0.04},
+        "dem_48.5_49.0": {"p": 0.07},
+        "dem_49.0_49.5": {"p": 0.13},
+        "dem_49.5_50.0": {"p": 0.28},
+        "dem_50.0_50.5": {"p": 0.6},
+        "dem_50.5_51.0": {"p": 0.43},
+        "dem_51.0_51.5": {"p": 0.22},
+        "dem_over_51.5": {"p": 0.1}
+      },
+      "reasoning": "Formal superior-court contests are less routine than recounts and require statutory grounds involving eligibility, misconduct or corrupt practices. Peltola's records litigation indicates attention to ballot acceptance, while a Sullivan defeat creates stronger incentives for a contest involving the second Sullivan. Larger margins reduce the plausibility that alleged problems could change the outcome; the existing records and federal cases do not themselves satisfy this question.",
+      "sources": [
+        "https://www.akleg.gov/statutesPDF/Title-15.pdf",
+        "https://law.state.ak.us/press/releases/2026/110626-Peltola.html",
+        "https://www.democracydocket.com/cases/alaska-u-s-senate-election-certification-challenge-doj/",
+        "https://www.fjc.gov/sites/default/files/materials/15/EE-AK-3-10-cv-252-Miller.pdf"
+      ]
+    },
+    "court_order": {
+      "forecasts": {
+        "dem_to_48.5": {"p": 0.008},
+        "dem_48.5_49.0": {"p": 0.012},
+        "dem_49.0_49.5": {"p": 0.022},
+        "dem_49.5_50.0": {"p": 0.055},
+        "dem_50.0_50.5": {"p": 0.17},
+        "dem_50.5_51.0": {"p": 0.11},
+        "dem_51.0_51.5": {"p": 0.055},
+        "dem_over_51.5": {"p": 0.025}
+      },
+      "reasoning": "Alaska's 2010 Senate litigation demonstrates that temporary certification injunctions can occur. Here, the November 1 dismissal, standing problems and difficulty remedying alleged voter confusion substantially constrain DOJ's pending appeal. A narrow Peltola victory gives the challenge its strongest incentive and numerical relevance, producing a discontinuity at 50% and declining risk as her margin grows.",
+      "sources": [
+        "https://www.democracydocket.com/wp-content/uploads/2026/10/Order-granting-dismissal.pdf",
+        "https://www.democracydocket.com/wp-content/uploads/2026/10/2026-11-01-Notice-of-appeal.pdf",
+        "https://www.fjc.gov/sites/default/files/materials/15/EE-AK-3-10-cv-252-Miller.pdf"
+      ]
+    },
+    "winner_sworn": {
+      "forecasts": {
+        "dem_to_48.5": {"p": 0.996},
+        "dem_48.5_49.0": {"p": 0.995},
+        "dem_49.0_49.5": {"p": 0.993},
+        "dem_49.5_50.0": {"p": 0.987},
+        "dem_50.0_50.5": {"p": 0.965},
+        "dem_50.5_51.0": {"p": 0.978},
+        "dem_51.0_51.5": {"p": 0.988},
+        "dem_over_51.5": {"p": 0.993}
+      },
+      "reasoning": "Certified Senate winners overwhelmingly take office promptly, and Alaska's 2010 certification dispute ended before Murkowski's January swearing-in. January 31 provides additional time beyond the term's start, while the incoming Democratic majority reduces incentives to refuse Peltola a seat. A narrow Peltola victory nevertheless carries the greatest chance of prolonged litigation or certification obstruction.",
+      "sources": [
+        "https://www.fjc.gov/sites/default/files/materials/15/EE-AK-3-10-cv-252-Miller.pdf",
+        "https://www.murkowski.senate.gov/press/article/anchorage-daily-news-murkowski-welcomed-back-to-us-senate",
+        "https://www.senate.gov/states/MN/senators.htm",
+        "https://news.ballotpedia.org/2026/11/05/democrats-senate-gains-qualify-as-a-wave-election-while-house-gains-so-far-fall-short/"
+      ]
+    },
+    "peltola_senator": {
+      "forecasts": {
+        "dem_to_48.5": {"p": 0.0002},
+        "dem_48.5_49.0": {"p": 0.0003},
+        "dem_49.0_49.5": {"p": 0.0005},
+        "dem_49.5_50.0": {"p": 0.001},
+        "dem_50.0_50.5": {"p": 0.964},
+        "dem_50.5_51.0": {"p": 0.977},
+        "dem_51.0_51.5": {"p": 0.987},
+        "dem_over_51.5": {"p": 0.992}
+      },
+      "reasoning": "Conditional on her certified victory, Peltola's probability of holding office closely follows timely seating, with a small allowance for death, withdrawal or other exceptional events. Certification litigation makes narrow victories somewhat less secure by February 1. Conditional on a certified Sullivan victory after recounts, Peltola would need an extraordinary Senate determination or a separate vacancy and appointment.",
+      "sources": [
+        "https://www.senate.gov/about/origins-foundations/senate-and-constitution/judge-elections-qualifications.htm",
+        "https://www.democracydocket.com/cases/alaska-u-s-senate-election-certification-challenge-doj/",
+        "https://www.fjc.gov/sites/default/files/materials/15/EE-AK-3-10-cv-252-Miller.pdf"
+      ]
+    },
+    "dem_caucus": {
+      "forecasts": {
+        "dem_to_48.5": {"p05": 54, "p25": 54, "p50": 55, "p75": 55, "p95": 55},
+        "dem_48.5_49.0": {"p05": 54, "p25": 54, "p50": 55, "p75": 55, "p95": 55},
+        "dem_49.0_49.5": {"p05": 54, "p25": 54, "p50": 55, "p75": 55, "p95": 55},
+        "dem_49.5_50.0": {"p05": 54, "p25": 54, "p50": 55, "p75": 55, "p95": 55},
+        "dem_50.0_50.5": {"p05": 55, "p25": 55, "p50": 56, "p75": 56, "p95": 56},
+        "dem_50.5_51.0": {"p05": 55, "p25": 55, "p50": 56, "p75": 56, "p95": 56},
+        "dem_51.0_51.5": {"p05": 55, "p25": 55, "p50": 56, "p75": 56, "p95": 56},
+        "dem_over_51.5": {"p05": 55, "p25": 55, "p50": 56, "p75": 56, "p95": 56}
+      },
+      "reasoning": "Public reporting establishes 54 Democratic-caucus seats already called or not contested, with Alaska and Mississippi unresolved. Colom's reported lead makes another Democratic seat in Mississippi more likely than not. Alaska's winner usually adds exactly one seat to the relevant conditional distribution; known national returns leave little additional relationship with Alaska's margin, while vacancies, caucus changes and seating delays remain small tails.",
+      "sources": [
+        "https://news.ballotpedia.org/2026/11/05/democrats-senate-gains-qualify-as-a-wave-election-while-house-gains-so-far-fall-short/",
+        "https://www.ap.org/the-definitive-source/behind-the-news/calling-control-of-congress-in-the-2026-midterm-elections/",
+        "https://www.gpb.org/news/2026/11/08/the-incoming-class-of-us-senators-full-of-historic-firsts",
+        "https://www.mississippifreepress.org/liveblog-mississippis-2026-u-s-senate-election-results/"
+      ]
+    },
+    "sullivan_post": {
+      "forecasts": {
+        "dem_to_48.5": {"p": 0.03},
+        "dem_48.5_49.0": {"p": 0.03},
+        "dem_49.0_49.5": {"p": 0.035},
+        "dem_49.5_50.0": {"p": 0.04},
+        "dem_50.0_50.5": {"p": 0.24},
+        "dem_50.5_51.0": {"p": 0.24},
+        "dem_51.0_51.5": {"p": 0.23},
+        "dem_over_51.5": {"p": 0.22}
+      },
+      "reasoning": "Sullivan's previous State Department and National Security Council service, military background and Trump ties make an executive appointment plausible. Losing removes the opportunity cost of leaving the Senate, producing the main jump across 50%; a larger defeat modestly reduces his political appeal. Winning makes an appointment less likely, especially with a likely Democratic governor selecting a replacement, and no specific appointment plan was found.",
+      "sources": [
+        "https://www.sullivan.senate.gov/about/bio/",
+        "https://alaskabeacon.com/2026/08/28/sullivan-goes-on-attack-in-first-post-primary-faceoff-for-alaskas-u-s-senate-race/",
+        "https://www.foreign.senate.gov/download/s-hrg-115-413-transcript-051717"
+      ]
+    },
+    "ak_unemployment": {
+      "baseline": {
+        "value": 4.3,
+        "as_of": "September 2026; BLS publication 2026-10-20",
+        "source": "https://www.bls.gov/news.release/archives/laus_10202026.htm"
+      },
+      "forecasts": {
+        "dem_to_48.5": {"p05": 4, "p25": 4.2, "p50": 4.3, "p75": 4.4, "p95": 4.7},
+        "dem_48.5_49.0": {"p05": 4, "p25": 4.2, "p50": 4.3, "p75": 4.4, "p95": 4.7},
+        "dem_49.0_49.5": {"p05": 4, "p25": 4.2, "p50": 4.3, "p75": 4.4, "p95": 4.7},
+        "dem_49.5_50.0": {"p05": 4, "p25": 4.2, "p50": 4.3, "p75": 4.4, "p95": 4.7},
+        "dem_50.0_50.5": {"p05": 4, "p25": 4.2, "p50": 4.3, "p75": 4.4, "p95": 4.7},
+        "dem_50.5_51.0": {"p05": 4, "p25": 4.2, "p50": 4.3, "p75": 4.4, "p95": 4.7},
+        "dem_51.0_51.5": {"p05": 4, "p25": 4.2, "p50": 4.3, "p75": 4.4, "p95": 4.7},
+        "dem_over_51.5": {"p05": 4, "p25": 4.2, "p50": 4.3, "p75": 4.4, "p95": 4.7}
+      },
+      "reasoning": "Alaska's seasonally adjusted rate remained 4.3% through July–September, with private employment gains roughly offsetting government losses. Short-horizon persistence supports a 4.3% median, with somewhat more room for deterioration than improvement. December precedes the incoming senator's term, and the election result adds little information beyond the observed labor data, so all scenarios receive the same forecast.",
+      "sources": [
+        "https://www.bls.gov/news.release/archives/laus_10202026.htm",
+        "https://labor.state.ak.us/news/2026/news26-19.htm",
+        "https://www.bls.gov/news.release/archives/empsit_11062026.htm"
+      ]
+    },
+    "ak_oil": {
+      "baseline": {
+        "value": 427,
+        "as_of": "August 2026; published 2026-10-30",
+        "source": "https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?f=M&n=PET&s=MCRFPAK2"
+      },
+      "forecasts": {
+        "dem_to_48.5": {"p05": 455, "p25": 495, "p50": 515, "p75": 532, "p95": 550},
+        "dem_48.5_49.0": {"p05": 455, "p25": 495, "p50": 515, "p75": 532, "p95": 550},
+        "dem_49.0_49.5": {"p05": 455, "p25": 495, "p50": 515, "p75": 532, "p95": 550},
+        "dem_49.5_50.0": {"p05": 455, "p25": 495, "p50": 515, "p75": 532, "p95": 550},
+        "dem_50.0_50.5": {"p05": 455, "p25": 495, "p50": 515, "p75": 532, "p95": 550},
+        "dem_50.5_51.0": {"p05": 455, "p25": 495, "p50": 515, "p75": 532, "p95": 550},
+        "dem_51.0_51.5": {"p05": 455, "p25": 495, "p50": 515, "p75": 532, "p95": 550},
+        "dem_over_51.5": {"p05": 455, "p25": 495, "p50": 515, "p75": 532, "p95": 550}
+      },
+      "reasoning": "EIA's October outlook forecasts Alaska production at 520 thousand barrels per day in the first quarter of 2027, supported by Pikka's ramp-up and winter operating conditions. Santos's report of temporary reservoir-management curtailments warrants a longer lower tail and a median slightly below that projection. January production depends chiefly on existing facilities and operations, leaving no material forecast difference across Senate scenarios.",
+      "sources": [
+        "https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?f=M&n=PET&s=MCRFPAK2",
+        "https://www.eia.gov/outlooks/steo/pdf/steo_full.pdf",
+        "https://www.santos.com/news/2026-third-quarter-report/",
+        "https://www.santos.com/news/santos-achieves-significant-milestone-at-pikka-oil-project-advancing-ramp-up-to-plateau-production/"
+      ]
+    }
+  }
+}
+```

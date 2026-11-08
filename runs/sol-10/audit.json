@@ -1,0 +1,23 @@
+{
+ "events": 36,
+ "tool_calls": 14,
+ "web_calls": 14,
+ "urls": [
+  "https://ballotpedia.org/Election_results,_2026:_U.S._Senate",
+  "https://fairvote.org/how-will-remaining-ballots-affect-alaskas-statewide-elections/",
+  "https://www.democracydocket.com/news-alerts/new-data-suggests-peltola-likely-to-win-alaska-voters-not-confused-by-2-dan-sullivans/",
+  "https://www.elections.alaska.gov/enr/26GENR/",
+  "https://www.elections.alaska.gov/enr/26GENR/index.html",
+  "search: ",
+  "search: 'takeaways'",
+  "search: Alaska Peltola Sullivan November 8 2026 Senate ballots ranked choice ...",
+  "search: Alaska Senate November 8 2026 Peltola Kalshi Polymarket chance 2026 ...",
+  "search: Peltola November 2026 \"56.6\" \"56.7\" ...",
+  "search: site.alaskabeacon.com/2026/11/ Peltola uncounted early absentee ballots 2026 60,000 ...",
+  "search: site.elections.alaska.gov 2026 governor ranked choice majority 50 first choice two candidates tabulation ..."
+ ],
+ "violations": [],
+ "suspect": [],
+ "local_calls": [],
+ "passed": true
+}

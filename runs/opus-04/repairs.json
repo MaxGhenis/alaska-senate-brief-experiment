@@ -1,0 +1,58 @@
+[
+ {
+  "repair": "dropped_key",
+  "where": "recount.forecasts",
+  "key": "_unused",
+  "value": null,
+  "block": 1,
+  "as_written_block": 1
+ },
+ {
+  "repair": "dropped_key",
+  "where": "contest.forecasts",
+  "key": "_unused",
+  "value": null,
+  "block": 1,
+  "as_written_block": 1
+ },
+ {
+  "repair": "dropped_key",
+  "where": "court_order.forecasts",
+  "key": "_unused",
+  "value": null,
+  "block": 1,
+  "as_written_block": 1
+ },
+ {
+  "repair": "dropped_key",
+  "where": "winner_sworn.forecasts",
+  "key": "_unused",
+  "value": null,
+  "block": 1,
+  "as_written_block": 1
+ },
+ {
+  "repair": "dropped_key",
+  "where": "peltola_senator.forecasts",
+  "key": "_unused",
+  "value": null,
+  "block": 1,
+  "as_written_block": 1
+ },
+ {
+  "repair": "dropped_key",
+  "where": "sullivan_post.forecasts",
+  "key": "_unused",
+  "value": null,
+  "block": 1,
+  "as_written_block": 1
+ },
+ {
+  "repair": "dropped_key",
+  "where": "ak_oil.forecasts",
+  "key": "_unused",
+  "value": null,
+  "block": 1,
+  "as_written_block": 1
+ }
+]

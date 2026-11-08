@@ -1,0 +1,19 @@
+{
+ "events": 27,
+ "tool_calls": 10,
+ "web_calls": 10,
+ "urls": [
+  "https://theoverround.com/m/KXAKMOV-AKSENATE26NOV03",
+  "https://www.democracydocket.com/wp-content/uploads/2026/10/Order-granting-dismissal.pdf",
+  "https://www.elections.alaska.gov/enr/26GENR/",
+  "search: ",
+  "search: Alaska 2026 November 7 Peltola absentee early 20000 40000 ...",
+  "search: Alaska 2026 November 8 Peltola Sullivan uncounted ballots 102962 102325 ...",
+  "search: Alaska November 2026 cast vote record Peltola Sullivan 1097 20000 ...",
+  "search: Alaska Senate November 2026 Peltola remaining ballots Sullivan campaign memo early ..."
+ ],
+ "violations": [],
+ "suspect": [],
+ "local_calls": [],
+ "passed": true
+}

@@ -1,0 +1,27 @@
+{
+ "events": 43,
+ "tool_calls": 17,
+ "web_calls": 17,
+ "urls": [
+  "https://alaskanews.com/c/alaska-news/peltola-leads-sullivan-by-626-votes-with-nearly-all-alaska-precincts-counted",
+  "https://fairvote.org/how-will-remaining-ballots-affect-alaskas-statewide-elections/",
+  "https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?f=M&n=PET&s=MCRFPAK2",
+  "https://www.elections.alaska.gov/enr/26GENR/",
+  "https://www.nytimes.com/2026/11/05/us/alaska-ranked-choice-data-sullivan-peltola.html",
+  "https://www.santos.com/news/2026-third-quarter-report/",
+  "https://www.senate.gov/about/origins-foundations/senate-and-constitution/judging-elections-qualifications.htm",
+  "search: ",
+  "search: \"Mark Kelly\" \"Sullivan\" \"Hegseth\" November 2026 ...",
+  "search: \"United States v. State of Alaska\" \"2026\" \"November\" \"appeal\" ...",
+  "search: '20,000'",
+  "search: Alaska 2026 remaining absentee 2024 Peltola 2026 early votes Mary Peltola November 7 projections ...",
+  "search: Alaska November 5 2026 ranked choice data Peltola Sullivan Heikes cast vote records New York Times ...",
+  "search: Alaska November 8 2026 Peltola Sullivan 102962 102325 ...",
+  "search: Alaska election 2026 Peltola 58% early absentee Sullivan remaining ballots November 6 7 ...",
+  "search: site.senate.gov judging elections returns qualifications Senate contested elections ..."
+ ],
+ "violations": [],
+ "suspect": [],
+ "local_calls": [],
+ "passed": true
+}

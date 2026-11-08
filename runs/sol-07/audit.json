@@ -1,0 +1,20 @@
+{
+ "events": 32,
+ "tool_calls": 11,
+ "web_calls": 11,
+ "urls": [
+  "https://alaskabeacon.com/2026/11/03/ballot-measure-2-repeal-of-alaskas-election-system-trails-with-many-votes-uncounted/",
+  "https://alaskapublic.org/news/politics/elections/2026-11-04/6-takeaways-from-alaskas-election",
+  "https://docs.justia.com/cases/federal/district-courts/alaska/akdce/3:2026cv00376/80263/79",
+  "https://www.elections.alaska.gov/enr/26GENR/",
+  "search: ",
+  "search: \"Mark Kelly\" \"Dan Sullivan\" \"Hegseth\" November 2026 ...",
+  "search: Alaska 2026 Ballot Measure 2 cast vote record Peltola 2026 November analysis absentee ...",
+  "search: Alaska November 2026 Senate Peltola Sullivan November 8 2026 results count ...",
+  "search: Peltola Sullivan November 6 2026 absentee ballots late count 70000 ..."
+ ],
+ "violations": [],
+ "suspect": [],
+ "local_calls": [],
+ "passed": true
+}
