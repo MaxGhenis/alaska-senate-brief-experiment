@@ -1,0 +1,72 @@
+primary,effect,delta,runs,analytic,simulated,runs_needed_analytic
+P1 coached placebo,today's estimate,0.009375000000002132,24,0.039581899026635795,0.0405,544
+P1 coached placebo,today's estimate,0.009375000000002132,48,0.07215341965584113,0.0695,544
+P1 coached placebo,today's estimate,0.009375000000002132,96,0.1466878123515634,0.1355,544
+P1 coached placebo,today's estimate,0.009375000000002132,192,0.3161828812139035,0.316,544
+P1 coached placebo,today's estimate,0.009375000000002132,384,0.6277958515020639,0.6425,544
+P1 coached placebo,today's estimate,0.009375000000002132,544,0.8015635915794936,0.7885,544
+P1 coached placebo,today's estimate,0.009375000000002132,768,0.9278862292861313,0.9255,544
+P1 coached placebo,today's estimate,0.009375000000002132,1536,0.9989004934091825,nan,544
+P2 uncoached placebo,today's estimate,0.4024305555555439,24,0.05139012219217736,0.053,376
+P2 uncoached placebo,today's estimate,0.4024305555555439,48,0.10292526871229142,0.105,376
+P2 uncoached placebo,today's estimate,0.4024305555555439,96,0.22165906319391512,0.2315,376
+P2 uncoached placebo,today's estimate,0.4024305555555439,192,0.4711314367563497,0.4575,376
+P2 uncoached placebo,today's estimate,0.4024305555555439,376,0.8072627635377138,0.79,376
+P2 uncoached placebo,today's estimate,0.4024305555555439,384,0.8166447471332245,0.806,376
+P2 uncoached placebo,today's estimate,0.4024305555555439,768,0.9886188105406158,0.989,376
+P2 uncoached placebo,today's estimate,0.4024305555555439,1536,0.9999877186749808,nan,376
+P2 uncoached placebo,a quarter of its mean without the block,0.31684027777777546,24,0.03735990070907573,0.0325,600
+P2 uncoached placebo,a quarter of its mean without the block,0.31684027777777546,48,0.06654563700043198,0.057,600
+P2 uncoached placebo,a quarter of its mean without the block,0.31684027777777546,96,0.13302447234339476,0.1255,600
+P2 uncoached placebo,a quarter of its mean without the block,0.31684027777777546,192,0.28565184804095856,0.301,600
+P2 uncoached placebo,a quarter of its mean without the block,0.31684027777777546,384,0.579854776870478,0.58,600
+P2 uncoached placebo,a quarter of its mean without the block,0.31684027777777546,600,0.8037336272214803,0.797,600
+P2 uncoached placebo,a quarter of its mean without the block,0.31684027777777546,768,0.900407804461374,0.8935,600
+P2 uncoached placebo,a quarter of its mean without the block,0.31684027777777546,1536,0.9975410204610173,nan,600
+P2 uncoached placebo,half of its mean without the block,0.6336805555555509,24,0.11390660597680632,0.1105,152
+P2 uncoached placebo,half of its mean without the block,0.6336805555555509,48,0.26808461279503704,0.26,152
+P2 uncoached placebo,half of its mean without the block,0.6336805555555509,96,0.5667884221807992,0.603,152
+P2 uncoached placebo,half of its mean without the block,0.6336805555555509,152,0.8026866388233816,0.798,152
+P2 uncoached placebo,half of its mean without the block,0.6336805555555509,192,0.8964400238035067,0.8805,152
+P2 uncoached placebo,half of its mean without the block,0.6336805555555509,384,0.9974207430926859,0.997,152
+P2 uncoached placebo,half of its mean without the block,0.6336805555555509,768,0.9999996506220736,1.0,152
+P2 uncoached placebo,half of its mean without the block,0.6336805555555509,1536,0.9999999999999994,nan,152
+P2 uncoached placebo,all of its mean without the block,1.2673611111111018,24,0.4893325724486562,0.507,48
+P2 uncoached placebo,all of its mean without the block,1.2673611111111018,48,0.8757985794159225,0.878,48
+P2 uncoached placebo,all of its mean without the block,1.2673611111111018,96,0.9968271044974614,0.9985,48
+P2 uncoached placebo,all of its mean without the block,1.2673611111111018,192,0.9999995595928327,1.0,48
+P2 uncoached placebo,all of its mean without the block,1.2673611111111018,384,0.9999999999999993,1.0,48
+P2 uncoached placebo,all of its mean without the block,1.2673611111111018,768,1.0,1.0,48
+P2 uncoached placebo,all of its mean without the block,1.2673611111111018,1536,1.0,nan,48
+E1 effect index,today's estimate,0.010195138888888861,24,0.0667320108879538,0.0635,272
+E1 effect index,today's estimate,0.010195138888888861,48,0.1444085116401485,0.1395,272
+E1 effect index,today's estimate,0.010195138888888861,96,0.3195990485735198,0.33,272
+E1 effect index,today's estimate,0.010195138888888861,192,0.6382026266910203,0.6395,272
+E1 effect index,today's estimate,0.010195138888888861,272,0.8118391678860247,0.809,272
+E1 effect index,today's estimate,0.010195138888888861,384,0.9342810009473496,0.9275,272
+E1 effect index,today's estimate,0.010195138888888861,768,0.9991446578199618,1.0,272
+E1 effect index,today's estimate,0.010195138888888861,1536,0.9999999726092642,nan,272
+E1 effect index,a quarter of its mean without the block,0.03279201388888893,24,0.6742762476757759,0.69,32
+E1 effect index,a quarter of its mean without the block,0.03279201388888893,32,0.8432190715725387,0.8505,32
+E1 effect index,a quarter of its mean without the block,0.03279201388888893,48,0.9704660742347198,0.9775,32
+E1 effect index,a quarter of its mean without the block,0.03279201388888893,96,0.9999264281499421,1.0,32
+E1 effect index,a quarter of its mean without the block,0.03279201388888893,192,0.9999999999412683,1.0,32
+E1 effect index,a quarter of its mean without the block,0.03279201388888893,384,1.0,1.0,32
+E1 effect index,a quarter of its mean without the block,0.03279201388888893,768,1.0,1.0,32
+E1 effect index,a quarter of its mean without the block,0.03279201388888893,1536,1.0,nan,32
+E1 effect index,half of its mean without the block,0.06558402777777786,16,0.9549510936475336,0.993,16
+E1 effect index,half of its mean without the block,0.06558402777777786,24,0.9994329905286515,1.0,16
+E1 effect index,half of its mean without the block,0.06558402777777786,48,0.9999999996226292,1.0,16
+E1 effect index,half of its mean without the block,0.06558402777777786,96,1.0,1.0,16
+E1 effect index,half of its mean without the block,0.06558402777777786,192,1.0,1.0,16
+E1 effect index,half of its mean without the block,0.06558402777777786,384,1.0,1.0,16
+E1 effect index,half of its mean without the block,0.06558402777777786,768,1.0,1.0,16
+E1 effect index,half of its mean without the block,0.06558402777777786,1536,1.0,nan,16
+E1 effect index,all of its mean without the block,0.13116805555555572,16,0.9999999805427273,1.0,16
+E1 effect index,all of its mean without the block,0.13116805555555572,24,1.0,1.0,16
+E1 effect index,all of its mean without the block,0.13116805555555572,48,1.0,1.0,16
+E1 effect index,all of its mean without the block,0.13116805555555572,96,1.0,1.0,16
+E1 effect index,all of its mean without the block,0.13116805555555572,192,1.0,1.0,16
+E1 effect index,all of its mean without the block,0.13116805555555572,384,1.0,1.0,16
+E1 effect index,all of its mean without the block,0.13116805555555572,768,1.0,1.0,16
+E1 effect index,all of its mean without the block,0.13116805555555572,1536,1.0,nan,16
