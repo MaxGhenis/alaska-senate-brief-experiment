@@ -11,7 +11,14 @@ Invariants:
   apart from the summary's deviation note (differential test);
 - a run whose session audit failed on an exec-script flag stays out of scripts/arms.py's pool and
   enters the deviation's when admitted, and only then;
-- the registered `cli._session_audit` is back in place after the script returns or fails.
+- the registered `cli._session_audit` is back in place after the script returns or fails;
+- `admit` passes a flag only if it names the script the reviewer read (log, line and first 200
+  characters), and a label with no reviewed script on record stops the script;
+- the script needs --out, takes it as `--out FOLDER` or `--out=FOLDER`, and refuses the folders of the
+  registered analysis and its two sensitivity checks before it runs anything.
+
+One test reads the sealed record, not MOCK data: each admitted run's sealed flag equals the flag of the
+script that outputs/flag-review/ keeps.
 """
 
 from __future__ import annotations
@@ -32,21 +39,36 @@ spec = importlib.util.spec_from_file_location("deviation_1", Path(__file__).pare
 deviation = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(deviation)
 
-EXEC = f"rollout-MOCK.jsonl line 1: {deviation.EXEC_FLAG}: 'MOCK const [n,fs]=...; fs.all'"
+REAL_REVIEWED, REAL_REVIEW = dict(deviation.REVIEWED), deviation.REVIEW  # the sealed record's, before the MOCK ones
+MOCK_SCRIPT = "MOCK const [n,fs]=...; fs.all"
+EXEC = f"rollout-MOCK.jsonl line 1: {deviation.EXEC_FLAG}: {MOCK_SCRIPT!r}"
+UNREAD = f"rollout-MOCK.jsonl line 7: {deviation.EXEC_FLAG}: {MOCK_SCRIPT!r}"  # an exec script on another line
 OTHER = "rollout-MOCK.jsonl line 2: a command ran in /MOCK, outside the work directory"
 DRAWS = ["--draws", "300", "--secondary-draws", "50"]
+
+
+@pytest.fixture(autouse=True, scope="module")
+def mock_review(tmp_path_factory):
+    """A MOCK flag review: one reviewed script, on line 1 of rollout-MOCK.jsonl, for each label the tests admit."""
+    folder = tmp_path_factory.mktemp("flag-review")
+    (folder / "MOCK-script.js").write_text(MOCK_SCRIPT)
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(deviation, "REVIEW", folder)
+        mp.setattr(deviation, "REVIEWED", {label: ("rollout-MOCK.jsonl", 1, "MOCK-script.js")
+                                           for label in ("sol-MOCK", "sol-01", "sol-04", "sol-05")})
+        yield
 
 # Each way a failed session audit can differ from one that failed on exec scripts alone. The strategy
 # below builds such a record and then breaks a chosen set of these conditions, so every single break,
 # the boundary the deviation must hold, comes up often (and once each, below, as an explicit example).
-BREAKS = ("no flag", "other flag", "missing", "orphans", "violations", "no thread", "failed thread")
+BREAKS = ("no flag", "other flag", "unread script", "missing", "orphans", "violations", "no thread", "failed thread")
 
 
 def build(passed: bool, breaks: frozenset, exec_flags: int, good_threads: int) -> dict:
     flags = [] if "no flag" in breaks else [EXEC] * exec_flags
     threads = [] if "no thread" in breaks else [{"audit": {"passed": True, "suspect": []}}] * good_threads
     return {"passed": passed,
-            "flags": flags + ([OTHER] if "other flag" in breaks else []),
+            "flags": flags + ([OTHER] if "other flag" in breaks else []) + ([UNREAD] if "unread script" in breaks else []),
             "threads": threads + ([{"audit": {"passed": False, "suspect": []}}] if "failed thread" in breaks else []),
             "missing": ["MOCK-thread"] if "missing" in breaks else [],
             "orphans": ["MOCK-thread"] if "orphans" in breaks else [],
@@ -97,6 +119,21 @@ def test_mock_admit_leaves_a_missing_or_unreadable_audit_alone(rec):
     assert deviation.admit(rec, "sol-01", {"sol-01"}) is rec
 
 
+def test_mock_admit_refuses_a_label_with_no_reviewed_script():
+    rec = build(False, frozenset(), 1, 1)
+    with pytest.raises(SystemExit, match="a script the reviewer did not read"):
+        deviation.admit(rec, "sol-99", {"sol-99"})
+    assert deviation.reviewed_flag("sol-99") is None and deviation.reviewed_flag("sol-MOCK") == EXEC
+
+
+def test_the_sealed_flags_name_the_scripts_the_reviewer_read():
+    """The sealed record, not MOCK data: each admitted run's one flag equals the flag of its reviewed script."""
+    assert set(REAL_REVIEWED) == {"sol-04", "sol-08"}
+    for label in REAL_REVIEWED:
+        rec = json.loads((deviation.ROOT / "runs" / label / "codex-sessions" / "audit.json").read_text())
+        assert rec["flags"] == [deviation.reviewed_flag(label, REAL_REVIEWED, REAL_REVIEW)], label
+
+
 def fail_session(mock_runs, label: str, flag: str) -> None:
     path = mock_runs / "runs" / label / "codex-sessions" / "audit.json"
     path.write_text(json.dumps({"passed": False, "violations": 0, "missing": [], "orphans": [], "flags": [flag],
@@ -142,3 +179,33 @@ def test_mock_refuses_a_run_that_failed_on_anything_else(mock_runs, flag):
 def test_mock_needs_a_label(mock_runs):
     with pytest.raises(SystemExit, match="--admit"):
         deviation.main([*DRAWS, "--out", str(mock_runs / "dev")])
+
+
+def test_mock_needs_an_output_folder(mock_runs):
+    registered = (deviation.ROOT / "outputs" / "arms" / "summary.md").read_bytes()
+    with pytest.raises(SystemExit) as stop:
+        deviation.main(["--admit", "sol-01", *DRAWS])
+    assert stop.value.code == 2  # argparse's exit for a missing required argument
+    assert (deviation.ROOT / "outputs" / "arms" / "summary.md").read_bytes() == registered
+
+
+def test_mock_takes_the_output_folder_in_either_spelling(mock_runs):
+    registered = (deviation.ROOT / "outputs" / "arms" / "summary.md").read_bytes()
+    spaced, joined = mock_runs / "spaced", mock_runs / "joined"
+    assert deviation.main(["--admit", "sol-01", *DRAWS, "--out", str(spaced)]) == 0
+    assert deviation.main(["--admit", "sol-01", *DRAWS, f"--out={joined}"]) == 0
+    for name in ("per_run.csv", "arm_means.csv", "effects.csv", "primary_by_family.csv", "summary.md"):
+        assert (joined / name).read_bytes() == (spaced / name).read_bytes(), name
+    assert (joined / "summary.md").read_text().split("\n")[2].startswith("Deviation 1 (prereg/README.md)")
+    assert (deviation.ROOT / "outputs" / "arms" / "summary.md").read_bytes() == registered
+
+
+@pytest.mark.parametrize("folder", ["arms", "arms-all-flags", "arms-strict"])
+def test_mock_refuses_a_registered_analysis_folder(mock_runs, folder):
+    target = deviation.ROOT / "outputs" / folder
+    before = {f.name: f.read_bytes() for f in target.iterdir() if f.is_file()}
+    with pytest.raises(SystemExit, match="holds a registered analysis"):
+        deviation.main(["--admit", "sol-01", *DRAWS, "--out", str(target)])
+    with pytest.raises(SystemExit, match="holds a registered analysis"):
+        deviation.main(["--admit", "sol-01", *DRAWS, f"--out={target}/"])
+    assert {f.name: f.read_bytes() for f in target.iterdir() if f.is_file()} == before

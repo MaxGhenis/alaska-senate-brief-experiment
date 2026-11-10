@@ -19,6 +19,9 @@ and arm, so the registered estimate's variance is 2 (s_opus^2 + s_sol^2) / N. It
     Each study then meets the registered rule itself: randomization p-values from re-assigning arms
     within each model with each arm's count kept, Holm's correction across the three primaries, and
     rejection below 0.05;
+- joint.csv: each primary's simulated power, and about the smallest study that reaches 80%, when all
+  three true effects equal today's estimates at once. Once Holm's correction rejects one primary it
+  tests the next at 5%/2, so these counts fall below the ones at 5%/3;
 - size.csv: the same simulation with no effect anywhere, the rule's false rejections;
 - second_wave.csv: the chance that pooling a second wave of N2 runs with these runs takes each primary
   past 5%/3, if its true effect equals today's estimate, and if there is none. This normal
@@ -321,6 +324,26 @@ def answer_reasoning(runs_dir: Path, run: str, question: str) -> str | None:
     return " ".join(text.split()) if isinstance(text, str) and text.strip() else None
 
 
+# What a run's sealed session log shows about an answer that runs against its question's usual direction,
+# for the answers whose logs I have read (prereg/README.md gives each log's line numbers and hash).
+SEALED_RECORDS = {
+    ("sol-06", "sullivan_post"): (
+        "Its sealed session log shows a slip: a sub-agent advised 0.25 to 0.30 after a defeat and 0.04 to "
+        "0.07 after reelection, and the run then entered 0.28 in the four ranges where Sullivan wins "
+        "(`prereg/README.md`)."),
+}
+
+
+def listed(items: list[str]) -> str:
+    """'a, b and c'."""
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def runs_words(need: float) -> str:
+    """A run count for a table: the search's floor, two runs per model and arm, reads "16 or fewer"."""
+    return "16 or fewer" if need == 16 else fmt(need)
+
+
 def reversed_answers(per_run_csv: Path, at_least: float = 0.1) -> list[tuple[str, str, float]]:
     """(run, question, jump) for each of E1's answers whose jump runs against its question's median
     direction by at least `at_least`."""
@@ -344,9 +367,9 @@ class Simulator:
     Within each family, the simulator scales every run's residual vector (its primaries less its own
     arm's means) by sqrt(runs / (runs - 4)), so the resampled residuals' variance matches the pooled
     within-arm variance the registered standard error uses. A study draws n / 8 residual vectors per family and
-    arm with replacement, adds the family's mean and the true effect (on the target primary, through
-    its contrast's weights), then takes each primary's randomization p-value (`randomization`) and
-    Holm's correction across the primaries."""
+    arm with replacement, adds the family's mean and the true effect (on the target primary, or on
+    each primary that a dict of effects names, through its contrast's weights), then takes each
+    primary's randomization p-value (`randomization`) and Holm's correction across the primaries."""
 
     def __init__(self, primaries: dict[str, list[tuple[str, str, float]]], seed: int = 0):
         self.names = list(primaries)
@@ -364,7 +387,7 @@ class Simulator:
         self.weights = np.array([[contrast_of(nm)[a] for a in arms.ARMS] for nm in self.names])
         self.rng = np.random.default_rng(seed)
 
-    def reject(self, n: int, target: str | None, delta: float, studies: int, draws: int,
+    def reject(self, n: int, target: str | dict[str, float] | None, delta: float, studies: int, draws: int,
                batch: int = 100) -> np.ndarray:
         """studies x primaries: whether Holm's correction rejects each primary in each study. Each batch
         of studies gets its own set of re-assignments, so no one set's luck sets the rule's level."""
@@ -375,7 +398,8 @@ class Simulator:
         _, p = randomization(ys, [arm] * len(ys), self.weights, draws, self.rng)
         return holm_rows(p) < ALPHA
 
-    def draw(self, n: int, target: str | None, delta: float, studies: int) -> tuple[list[np.ndarray], np.ndarray]:
+    def draw(self, n: int, target: str | dict[str, float] | None, delta: float,
+             studies: int) -> tuple[list[np.ndarray], np.ndarray]:
         """`studies` balanced studies of n runs: each family's values (studies x runs x primaries) and the
         runs' arms (indices into arms.ARMS, n / 8 each, the same in every family)."""
         fams = len(self.families)
@@ -383,7 +407,10 @@ class Simulator:
             raise ValueError(f"{n} runs don't split evenly over {fams} families and {len(arms.ARMS)} arms")
         arm = np.repeat(np.arange(len(arms.ARMS)), n // (len(arms.ARMS) * fams))
         shift = np.zeros(len(self.names))
-        if target is not None:
+        if isinstance(target, dict):  # several primaries at once, each with its own effect
+            for name, effect in target.items():
+                shift[self.names.index(name)] = effect
+        elif target is not None:
             shift[self.names.index(target)] = delta
         ys = []
         for fam in self.families:
@@ -391,8 +418,33 @@ class Simulator:
             ys.append(self.mean[fam] + self.resid[fam][pick] + shift * self.weights[:, arm].T)
         return ys, arm
 
-    def power(self, n: int, target: str | None, delta: float, studies: int, draws: int) -> np.ndarray:
+    def power(self, n: int, target: str | dict[str, float] | None, delta: float, studies: int,
+              draws: int) -> np.ndarray:
         return self.reject(n, target, delta, studies, draws).mean(axis=0)
+
+
+def simulated_runs_needed(sim: Simulator, effects: dict[str, float], name: str, upper: int, studies: int,
+                          draws: int, power: float = POWER, step: int = 8, cap: int = 100_000) -> float:
+    """About the smallest study, in multiples of `step` runs, at which the simulated rule rejects `name`
+    at least `power` of the time when every primary in `effects` has its effect at once. A bisection
+    between 2 * step runs and `upper`, which grows by half until the rule reaches `power` there (inf past
+    `cap`). Each size's power carries Monte Carlo error, so the answer can sit a few steps off."""
+    i = sim.names.index(name)
+
+    def reaches(n: int) -> bool:
+        return float(sim.power(n, effects, 0.0, studies, draws)[i]) >= power
+
+    lo, hi = 2 * step, max(upper // step * step, 3 * step)
+    while not reaches(hi):
+        lo, hi = hi, hi * 3 // (2 * step) * step
+        if hi > cap:
+            return math.inf
+    if lo == 2 * step and reaches(lo):
+        return lo
+    while hi - lo > step:
+        mid = (lo + hi) // (2 * step) * step
+        lo, hi = (lo, mid) if reaches(mid) else (mid, hi)
+    return hi
 
 
 # --------------------------------------------------------------------------- the report
@@ -476,7 +528,20 @@ def main(argv=None) -> int:
                   "chance_if_no_effect_t_cutoff": second_wave_power(d["est"], d["se"], 0.0, d["s2"], n2, d["con"],
                                                                     df_today=d["df"])}
                  for name, d in info.items() for n2 in a.waves]
-    for fname, table in (("power.csv", power_rows), ("size.csv", size_rows), ("second_wave.csv", wave_rows)):
+    joint = {name: d["est"] for name, d in info.items()}
+    joint_rows = []
+    for name, d in info.items():
+        need = runs_needed(d["est"], d["s2"], d["con"])
+        if math.isfinite(need) and need <= a.simulate_max:
+            there = float(sim.power(need, joint, 0.0, a.studies, a.draws)[sim.names.index(name)])
+            joint_rows.append({"primary": name, "true_effect": d["est"], "runs_needed_alone_analytic": need,
+                               "simulated_power_there_all_three": there,
+                               "runs_needed_all_three_simulated": simulated_runs_needed(
+                                   sim, joint, name, need, a.studies, a.draws)})
+    tables = [("power.csv", power_rows), ("size.csv", size_rows), ("second_wave.csv", wave_rows)]
+    if len(joint_rows) == len(info):
+        tables.append(("joint.csv", joint_rows))
+    for fname, table in tables:
         with open(a.out / fname, "w", newline="") as f:
             w = csv.DictWriter(f, fieldnames=list(table[0]))
             w.writeheader()
@@ -501,29 +566,42 @@ def main(argv=None) -> int:
         L.append(f"| {name} | {fmt(mde_from_se(d['se'], d['df']))} | "
                  + " | ".join(fmt(mde(d["s2"], n, d["con"])) for n in sizes) + " |")
     L += ["", "## Runs a study needs for an 80% chance of rejecting", "",
-          "Analytic, at 5%/3, in a balanced study. `simulated` gives the registered rule's own power "
-          "(randomization p-values, Holm's correction across the three primaries) at that many runs, "
-          "where that is at most the largest simulated size.", "",
+          "Analytic, at 5%/3, in a balanced study, with the other two primaries' effects at zero. `simulated` "
+          "gives the registered rule's own power (randomization p-values, Holm's correction across the three "
+          "primaries) at that many runs under the same condition, where that is at most the largest simulated "
+          "size. The search starts at 16 runs, two per model and arm.", "",
           "| primary | true effect | size | runs needed | simulated power there |", "|---|---|---|---|---|"]
     for name, d in info.items():
         for label, delta in d["deltas"].items():
             need = runs_needed(delta, d["s2"], d["con"])
             got = next((r["simulated"] for r in power_rows
                         if r["primary"] == name and r["effect"] == label and r["runs"] == need), None)
-            L.append(f"| {name} | {label} | {fmt(delta)} | {fmt(need)} | {'' if got is None else f'{got:.2f}'} |")
+            L.append(f"| {name} | {label} | {fmt(delta)} | {runs_words(need)} | "
+                     f"{'' if got is None else f'{got:.2f}'} |")
+    if len(joint_rows) == len(info):
+        short = [r["primary"].split()[0] for r in joint_rows]
+        L += ["", "If all three true effects equal today's estimates at once, a study needs fewer runs: once "
+              "Holm's correction rejects one primary, it tests the next at 5%/2 and the last at 5%. The simulated "
+              "rule then reaches 80% at about "
+              + listed([f"{fmt(r['runs_needed_all_three_simulated'])} runs for {s}" for r, s in zip(joint_rows, short)])
+              + ". At the runs in the table above, it rejects "
+              + listed([f"{s} {100 * r['simulated_power_there_all_three']:.0f}%" for r, s in zip(joint_rows, short)])
+              + " of the time (`joint.csv`). Each simulated count carries Monte Carlo error of a few steps of 8 runs."]
     L += ["", "## What the run counts rest on", "",
           "- **They restate the p-values.** At today's estimate, the runs needed follow from how many standard "
           "errors that estimate lies from zero (" + ", ".join(f"{n.split()[0]} {d['est'] / d['se']:.2f}" for n, d in info.items())
           + "), and they scale as one over the effect squared. If the true effect sat at an end "
           "of today's 95% interval, a balanced study would need the runs below (for P1 only a rough guide, "
-          "since a shift models it badly; see the third point):", "",
+          "since a shift models it badly; see the third point). An end that would push a mean absolute jump "
+          "below zero reads \"not possible\":", "",
           "  | primary | 95% interval | runs needed at its lower end | at its upper end |",
           "  |---|---|---|---|"]
     for name, d in info.items():
         if d["ci"]:
             lo, hi = d["ci"]
-            L.append(f"  | {name} | {fmt(lo)} to {fmt(hi)} | {fmt(runs_needed(lo, d['s2'], d['con']))} | "
-                     f"{fmt(runs_needed(hi, d['s2'], d['con']))} |")
+            ends = ["not possible" if end < -d["without"] else runs_words(runs_needed(end, d["s2"], d["con"]))
+                    for end in (lo, hi)]
+            L.append(f"  | {name} | {fmt(lo)} to {fmt(hi)} | {ends[0]} | {ends[1]} |")
     ranges = {n: variance_range(d["s2"], d["dfs"]) for n, d in info.items()}
     dfs = next(iter(info.values()))["dfs"]
     L += ["", "- **The variances are noisy.** The two models' pooled variances rest on "
@@ -536,7 +614,8 @@ def main(argv=None) -> int:
           "block's arms. "
           + (f"P1's jumps take the values the forecasters' rounding allows, each a multiple of 1/240 of a "
              f"point, and {sum(abs(v) < 1e-9 for v in p1)} of {len(p1)} are zero, so this report gives P1 no "
-             "shifted effects. " if on_grid else "")
+             "shifted effect beyond today's estimate, and its simulated power there serves only as a rough "
+             "guide. " if on_grid else "")
           + "P2's measure scores a step of D in a run's governor's-race answers by where it falls: "
           + "; ".join(f"{step_words(step_score(b))} at {x}" for b, x in
                       ((3, "50%"), (2, "49.5% or 50.5%"), (1, "49% or 51%"), (0, "48.5% or 51.5%")))
@@ -551,27 +630,30 @@ def main(argv=None) -> int:
             return f"{e.est:.4f} (standard error {e.se:.4f}, estimate over standard error {e.est / e.se:.2f})"
 
         head = ("- **E1's absolute jumps ignore each jump's direction,** so they score an answer the same "
-                "whichever way round its forecaster entered it. Signed toward the direction most runs chose, E1 "
-                f"reads {reading(oriented)}")
+                "whichever way round its forecaster entered it. Signed toward the direction most runs chose, ")
         if flipped:
             back = oriented_index(a.per_run, swapped={(run, q) for run, q, _ in flipped})
-            L += [head + " with the answers below as written and " + reading(back) + " with them read the other "
-                  f"way round, beside {e1['est']:.4f} from the registered absolute jumps. Exploratory; the "
-                  "registered measure stands. "
-                  "The answers that run against their question's usual direction by at least 0.1 (a jump is "
-                  "Peltola's side minus Sullivan's), each with its run's own reasoning for it:"]
+            L += [head + f"with the answers below read the other way round, E1 reads {reading(back)}, beside "
+                  f"{e1['est']:.4f} from the registered absolute jumps. With those answers as written, it reads "
+                  f"{reading(oriented)}, which counts each one as a forecast against the other runs. Exploratory; "
+                  "the registered measure stands. The answers that run against their question's usual direction "
+                  "by at least 0.1 (a jump is Peltola's side minus Sullivan's), each with its run's own reasoning "
+                  "for it:"]
             for run, q, j in flipped:
                 why = answer_reasoning(a.runs, run, q)
+                record = SEALED_RECORDS.get((run, q))
                 L.append(f"  - {run}, {q}: jump {j:+.2f}, a higher chance where "
                          f"{'Sullivan' if j < 0 else 'Peltola'} wins. "
-                         + (f'Its reasoning: "{why}"' if why else "Its answer gives no reasoning."))
+                         + (f'Its reasoning: "{why}"' if why else "Its answer gives no reasoning.")
+                         + (f" {record}" if record else ""))
         else:
-            L += [head + f", beside {e1['est']:.4f} from the registered absolute jumps; no answer runs against its "
-                  "question's usual direction by 0.1 or more. Exploratory; the registered measure stands."]
+            L += [head + f"E1 reads {reading(oriented)}, beside {e1['est']:.4f} from the registered absolute "
+                  "jumps; no answer runs against its question's usual direction by 0.1 or more. Exploratory; the "
+                  "registered measure stands."]
     L += ["", "## A pooled second wave", "",
           "The chance that today's runs pooled with a second wave cross 5%/3, if the true effect equals "
           "today's estimate, with the normal cutoff and then the t cutoff (today's degrees of freedom plus "
-          "the wave's). Both standard errors come from estimated variances, so the normal cutoff rejects a "
+          "the wave's, a few fewer than one pooled analysis of all the runs would have). Both standard errors come from estimated variances, so the normal cutoff rejects a "
           "true null more often than 5%/3. Neither counts the penalty a second look owes, so both overstate "
           "what an honest pooled test gives.", "",
           "| primary | " + " | ".join(f"+{n:,} runs" for n in a.waves) + " | runs for 80% |",
@@ -585,7 +667,9 @@ def main(argv=None) -> int:
                  + f"{fmt(wave_needed(d['est'], d['se'], d['est'], d['s2'], d['con'], df_today=d['df']))} |")
     L += ["", "## The rule's false rejections", "",
           f"With no effect anywhere, the share of {a.studies:,} simulated studies in which Holm's correction "
-          "rejected each primary, and any of them; the registered rule holds the last at or below 5%.", "",
+          "rejected each primary, and any of them. The registered rule holds the last at or below 5%, and a "
+          f"simulated share can stray from it by Monte Carlo error, about {100 * math.sqrt(0.05 * 0.95 / a.studies):.1f} "
+          "points here.", "",
           "| runs | " + " | ".join(sim.names) + " | any |", "|---|" + "---|" * (len(sim.names) + 1)]
     for r in size_rows:
         L.append(f"| {r['runs']:,} | " + " | ".join(f"{r[nm]:.3f}" for nm in sim.names) + f" | {r['any']:.3f} |")

@@ -1,0 +1,4 @@
+primary,true_effect,runs_needed_alone_analytic,simulated_power_there_all_three,runs_needed_all_three_simulated
+P1 coached placebo,0.0180555555555566,184,0.889,160
+P2 uncoached placebo,0.4958333333333185,224,0.8925,176
+E1 effect index,0.010187499999999971,240,0.8945,192

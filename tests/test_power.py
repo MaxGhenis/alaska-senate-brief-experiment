@@ -15,7 +15,11 @@ Invariants:
 - the simulated estimates vary as the analytic standard error says; with no effect the simulated rule
   rejects any primary at most 5% of the time; and the simulated power agrees with the analytic
   approximation on normal MOCK runs (differential test);
-- main() refuses a per-run table that disagrees with its effects.csv and writes its outputs;
+- a study whose effects arrive as a dict equals the same study with one target (differential test), and
+  `simulated_runs_needed` returns a multiple of 8 at which the simulated rule reaches its power;
+- main() refuses a per-run table that disagrees with its effects.csv and writes its outputs, the joint
+  file among them when every primary's count fits under --simulate-max, and marks an interval end that
+  no absolute jump can reach;
 - `oriented_index` with a reversed answer read the other way round equals the absolute index when
   every other answer runs the usual way (differential test), and main() quotes each reversed answer's
   own reasoning from its sealed response.json.
@@ -221,9 +225,10 @@ def test_mock_simulated_power_agrees_with_the_analytic_approximation():
 # ---------------------------------------------------------------------------- main
 
 
-def write_mock_tables(d: Path, primaries: dict[str, list[tuple[str, str, float]]], tamper: float = 0.0) -> Path:
+def write_mock_tables(d: Path, primaries: dict[str, list[tuple[str, str, float]]], tamper: float = 0.0,
+                      ci: tuple[float, float] | None = None) -> Path:
     """A MOCK per_run.csv in scripts/arms.py's layout (each primary's questions carry its value) and the
-    effects.csv rows for the three primaries, from arms.effect."""
+    effects.csv rows for the three primaries, from arms.effect, with MOCK interval ends `ci` if given."""
     d.mkdir(parents=True, exist_ok=True)
     questions = {name: nodes for name, nodes, _, _ in arms.PRIMARY}
     first = primaries[NAMES[0]]
@@ -236,10 +241,11 @@ def write_mock_tables(d: Path, primaries: dict[str, list[tuple[str, str, float]]
                     w.writerow([f"{fam}-MOCK{i:02d}", fam, arm, q, primaries[name][i][2]])
     with open(d / "effects.csv", "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["outcome", "estimate", "se", "randomization_p", "holm_p", "registered_primary"])
+        w.writerow(["outcome", "estimate", "se", "randomization_p", "holm_p", "registered_primary"]
+                   + (["ci_lo", "ci_hi"] if ci else []))
         for name in NAMES:
             e = arms.effect(primaries[name], power.contrast_of(name))
-            w.writerow([name, e.est + tamper, e.se, 0.5, 1.0, "True"])
+            w.writerow([name, e.est + tamper, e.se, 0.5, 1.0, "True", *(ci or ())])
     return d / "per_run.csv"
 
 
@@ -255,6 +261,56 @@ def test_mock_main_writes_its_outputs(tmp_path):
     rows = list(csv.DictReader(open(out / "power.csv")))
     assert {r["primary"] for r in rows} == set(NAMES)
     assert not any(r["effect"] != "today's estimate" for r in rows if r["primary"] == "P1 coached placebo")
+
+
+def test_mock_a_dict_of_effects_draws_the_same_study_as_one_target():
+    primaries = mock_primaries(OBSERVED_COUNTS, {"opus": 0.3, "sol": 0.6}, seed=31)
+    one = power.Simulator(primaries, seed=5).draw(24, NAMES[1], 0.7, 6)
+    many = power.Simulator(primaries, seed=5).draw(24, {NAMES[1]: 0.7}, 0.0, 6)
+    for a, b in zip(one[0], many[0]):
+        np.testing.assert_array_equal(a, b)
+    np.testing.assert_array_equal(one[1], many[1])
+    both = power.Simulator(primaries, seed=5).draw(24, {NAMES[0]: 0.2, NAMES[1]: 0.7}, 0.0, 6)
+    w = np.array([power.contrast_of(NAMES[0])[arms.ARMS[j]] for j in both[1]])
+    for a, b in zip(many[0], both[0]):  # the second effect moves the first primary alone, by its contrast's weights
+        np.testing.assert_allclose(b[:, :, 0] - a[:, :, 0], 0.2 * w + 0 * a[:, :, 0], atol=1e-12)
+        np.testing.assert_array_equal(a[:, :, 1:], b[:, :, 1:])
+
+
+def test_mock_simulated_runs_needed_finds_a_size_that_reaches_its_power():
+    counts = {"opus": (10, 10, 10, 10), "sol": (10, 10, 10, 10)}  # MOCK: a pool big enough to look normal
+    primaries = {name: mock_rows(counts, {"opus": 1.0, "sol": 1.0}, seed=40 + i) for i, name in enumerate(NAMES)}
+    sim = power.Simulator(primaries, seed=7)
+    s2 = power.family_variances(primaries[NAMES[2]])
+    effects = {name: 1.2 for name in NAMES}  # MOCK: every primary carries a real effect
+    alone = power.runs_needed(1.2, s2, power.contrast_of(NAMES[2]))
+    got = power.simulated_runs_needed(sim, effects, NAMES[2], alone, studies=400, draws=400)
+    assert got % 8 == 0 and 16 <= got <= alone + 16, (got, alone)
+    assert 0.7 <= sim.power(got, effects, 0.0, 600, 400)[2] <= 0.97
+    assert power.simulated_runs_needed(sim, {NAMES[2]: 0.0}, NAMES[2], 16, studies=40, draws=40, cap=40) == math.inf
+
+
+def test_mock_run_counts_name_the_searchs_floor():
+    assert power.runs_words(16) == "16 or fewer" and power.runs_words(24) == "24"
+
+
+def test_mock_main_writes_the_joint_file_and_marks_an_impossible_interval_end(tmp_path):
+    # MOCK: each primary carries a large effect on its own contrast, so every count fits under --simulate-max.
+    primaries = {name: mock_rows(OBSERVED_COUNTS, {"opus": 0.3, "sol": 0.6}, shift=1.5,
+                                 contrast=power.contrast_of(name), seed=50 + i) for i, name in enumerate(NAMES)}
+    per_run = write_mock_tables(tmp_path / "in", primaries, ci=(-1000.0, 2.0))
+    out = tmp_path / "out"
+    # 200 re-assignments: with fewer than 60, no randomization p-value can fall below 5%/3, so nothing rejects.
+    assert power.main(["--per-run", str(per_run), "--out", str(out), "--studies", "60", "--draws", "200",
+                       "--sizes", "24", "--waves", "24", "--simulate-max", "48"]) == 0
+    rows = list(csv.DictReader(open(out / "joint.csv")))
+    assert [r["primary"] for r in rows] == NAMES
+    assert all(float(r["runs_needed_all_three_simulated"]) % 8 == 0 for r in rows), rows
+    assert all(float(r["simulated_power_there_all_three"]) >= 0.8 for r in rows), rows
+    text = (out / "summary.md").read_text()
+    assert "If all three true effects equal today's estimates at once" in text
+    assert "with the other two primaries' effects at zero" in text
+    assert "| not possible |" in text and "16 or fewer" in text
 
 
 def test_mock_main_refuses_a_per_run_table_that_disagrees_with_effects(tmp_path):
@@ -368,4 +424,6 @@ def test_mock_main_quotes_a_reversed_answers_reasoning(tmp_path):
     assert f"  - {target['run']}, sullivan_post: jump -" in text
     assert "a higher chance where Sullivan wins" in text
     assert 'Its reasoning: "MOCK: losing raises the chance."' in text
-    assert "with them read the other way round" in text
+    assert "with the answers below read the other way round, E1 reads" in text
+    assert "With those answers as written, it reads" in text
+    assert "sealed session log" not in text  # MOCK runs have no sealed record on file
