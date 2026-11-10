@@ -93,6 +93,16 @@ each side, so it scores a step of D by where the step falls: D at 50%, −D/12 a
 −5D/12 at 49% or 51%. Ten runs step at 51%, and their jumps run from −2.3 to −3.1 points. No run
 steps at 50%: across the two ranges beside it, no run's median moves more than 0.8 points.
 
+The steps come from the question's own rule. `gov_dem_share` takes the ticket's share of the votes
+for the top two tickets in the last round, and if a ticket wins a majority of first choices, the
+first round counts as the last. All 16 runs name that rule in their reasoning. They expect a share
+near 55% to 57% if the tabulation runs and near 62% to 64% if Kreiss-Tomkins wins a first-choice
+majority, which a higher Peltola share makes more likely. So each run's median moves from one
+cluster to the other at some range: just below its step, a run's median sits between 55.3% and
+57.4%, and just above, between 61.8% and 63.9%. sol-05 writes that its quantiles "span two distinct
+clusters, without a causal jump from the Senate winner itself." The median of a forecast with two
+clusters steps where their weights cross one half, while its mean moves gradually.
+
 So P2's estimate, +0.40 points (95% interval −0.76 to +1.56), compares where the runs with and
 without the placebo block put their steps. With the block, the share of runs that step at 51%
 exceeds the share without it by 0.125 (standard error 0.22), all of it among the Sol runs, and such
@@ -102,7 +112,8 @@ means in `arm_means.csv`, −0.63 to −1.89 points, come from those steps: acro
 arm's medians rise by 0.45 to 0.56 points, and no run's median falls.
 
 No forecaster in any arm added a jump at 50% for the governor's race, so P2 cannot show whether the
-placebo block's note on Measure 2 carries over to it. In E1, `contest` steps by 0.15 to 0.21 between
+placebo block's note on Measure 2 carries over to it. A placebo question needs a resolution rule
+with no threshold of its own. In E1, `contest` steps by 0.15 to 0.21 between
 ranges away from 50% in 13 runs, so a small part of E1 also reflects where steps fall. P2 and E1
 stand as registered.
 
